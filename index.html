@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>牌桌游戏 · 21点 & 德州扑克</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♠</text></svg>" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: radial-gradient(circle at 50% 32%, #1d6b48 0%, #0e3b28 55%, #062216 100%);
+        font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      #app { width: 100%; height: 100%; }
+      #app canvas { display: block; }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #e8dcc0;
+        font-size: 15px;
+        letter-spacing: 2px;
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+      }
+      #boot.hidden { opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="boot">正在洗牌…</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

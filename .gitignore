@@ -1,0 +1,21 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物（dist 由部署流程生成；zip 是上传 Makers 的打包产物）
+dist/
+*.zip
+
+# 编辑器 / IDE 本地数据（含绝对路径与会话状态，不适合入库）
+.history/
+.codebuddy/
+.DS_Store
+
+# 环境变量与密钥
+.env
+.env.local
+.env*.local
+
+# 日志
+*.log
+npm-debug.log*

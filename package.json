@@ -1,0 +1,24 @@
+{
+  "name": "pixi-blackjack",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "atlas": "node scripts/generate-atlas.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "zip": "npm run build && cd dist && zip -r -X ../pixi-blackjack-makers.zip . && cd ..",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@edgeone/pages-blob": "^0.0.18",
+    "@tencent/pages-blob": "^0.1.7",
+    "pixi.js": "^8.6.6"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^0.1.65",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

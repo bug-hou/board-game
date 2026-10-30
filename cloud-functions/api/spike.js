@@ -11,7 +11,7 @@
  * SDK 包名在官方文档两处不一致（概览页写 @tencent，Blob 专页写 @edgeone），
  * 两个包在 npm 上都存在。这里按顺序探测，取第一个能 export getStore 的。
  */
-const SDK_CANDIDATES = ['@tencent/pages-blob', '@edgeone/pages-blob'];
+const SDK_CANDIDATES = ['@edgeone/pages-blob', '@tencent/pages-blob'];
 
 let sdkPromise = null;
 async function loadSdk() {

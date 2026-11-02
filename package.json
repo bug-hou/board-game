@@ -12,7 +12,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@edgeone/pages-blob": "^0.0.18",
     "pixi.js": "^8.6.6"
   },
   "devDependencies": {

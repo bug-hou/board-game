@@ -186,23 +186,34 @@ export class SeatView extends Container {
 
   // ---------- 底牌 ----------
 
-  /** 放置底牌（AI 默认背面） */
-  setHole(cards: Card[], faceUp: boolean) {
+  /**
+   * 放置底牌（AI 默认背面）。
+   * 传入 from 时底牌先停在发牌点，等待 dealIn 逐张飞入；
+   * 不传则直接落在座位上（用于无需发牌动画的场景）。
+   */
+  setHole(cards: Card[], faceUp: boolean, from?: { x: number; y: number }) {
     this.clearCards();
     cards.forEach((c, i) => {
       const v = new CardView(this.opts.tweens, c, faceUp);
       v.scale.set(this.scaleFactor);
       const home = { x: (i - (cards.length - 1) / 2) * this.gap, y: 0 };
-      v.position.set(home.x, home.y);
       this.cardLayer.addChild(v);
       this.cards.push(v);
       this.homes.push(home);
+      if (from) {
+        // 停在发牌点，避免动画开始前底牌就已经出现在座位上
+        v.position.set(from.x - this.x, from.y - this.y);
+        v.rotation = -0.5;
+      } else {
+        v.position.set(home.x, home.y);
+      }
     });
   }
 
-  /** 从发牌点逐张飞入座位 */
-  async dealIn(from: { x: number; y: number }): Promise<void> {
+  /** 从发牌点飞入座位。指定 index 时只飞第 index 张，用于逐张轮转发牌 */
+  async dealIn(from: { x: number; y: number }, index?: number): Promise<void> {
     for (let i = 0; i < this.cards.length; i++) {
+      if (index !== undefined && i !== index) continue;
       const v = this.cards[i];
       v.position.set(from.x - this.x, from.y - this.y);
       v.rotation = -0.5;

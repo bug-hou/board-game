@@ -394,8 +394,9 @@ export class HoldemScene implements Scene {
       for (const p of order) {
         if (this.destroyed) return;
         const sv = this.seatViews.get(p.id)!;
-        if (round === 0) sv.setHole(p.hole.slice(), p.isHuman);
-        await sv.dealIn(POKER_LAYOUT.deck);
+        // 第一轮建好底牌并停在发牌点，之后每轮每人只飞入一张（德州是逐张轮转发牌）
+        if (round === 0) sv.setHole(p.hole.slice(), p.isHuman, POKER_LAYOUT.deck);
+        await sv.dealIn(POKER_LAYOUT.deck, round);
       }
     }
     // 盲注展示

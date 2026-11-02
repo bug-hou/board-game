@@ -1,8 +1,8 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { DESIGN_H, DESIGN_W, POKER_LAYOUT } from '../../config';
+import { COLORS, DESIGN_H, DESIGN_W, FONTS, POKER_LAYOUT } from '../../config';
 import { Easing, type TweenManager } from '../../core/tween';
 
-/** 德州模式 HUD：顶栏提示 / 盲注 / 筹码、底池、结算横幅 */
+/** 德州模式 HUD：顶栏提示 / 盲注 / 份额、本轮池、结算横幅 */
 export class PokerHud extends Container {
   private messageText: Text;
   private blindsText: Text;
@@ -16,17 +16,17 @@ export class PokerHud extends Container {
     super();
 
     const bar = new Graphics();
-    bar.rect(0, 0, DESIGN_W, 92).fill({ color: 0x042015, alpha: 0.55 });
+    bar.rect(0, 0, DESIGN_W, 92).fill({ color: COLORS.feltDark, alpha: 0.55 });
     this.addChild(bar);
 
     this.messageText = new Text({
       text: '',
       style: {
-        fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: 24,
         fontWeight: 'bold',
-        fill: 0xf3ecd8,
-        dropShadow: { color: 0x000000, alpha: 0.55, blur: 4, distance: 2 },
+        fill: COLORS.text,
+        dropShadow: { color: 0x000000, alpha: 0.4, blur: 4, distance: 2 },
       },
     });
     this.messageText.anchor.set(0.5);
@@ -35,9 +35,9 @@ export class PokerHud extends Container {
     this.blindsText = new Text({
       text: '',
       style: {
-        fontFamily: '"PingFang SC", sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: 14,
-        fill: 0xbfd8c4,
+        fill: COLORS.textDim,
         letterSpacing: 1,
       },
     });
@@ -47,10 +47,10 @@ export class PokerHud extends Container {
     this.stackText = new Text({
       text: '',
       style: {
-        fontFamily: '"PingFang SC", Arial, sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: 20,
         fontWeight: 'bold',
-        fill: 0xe8c56a,
+        fill: COLORS.gold,
       },
     });
     this.stackText.anchor.set(1, 0.5);
@@ -59,11 +59,11 @@ export class PokerHud extends Container {
     this.potText = new Text({
       text: '',
       style: {
-        fontFamily: 'Georgia, Arial, serif',
-        fontSize: 30,
+        fontFamily: FONTS.cn,
+        fontSize: 28,
         fontWeight: 'bold',
-        fill: 0xffd86a,
-        dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 2 },
+        fill: COLORS.gold,
+        dropShadow: { color: 0x000000, alpha: 0.4, blur: 4, distance: 2 },
       },
     });
     this.potText.anchor.set(0.5);
@@ -71,17 +71,17 @@ export class PokerHud extends Container {
 
     // 横幅
     const bg = new Graphics();
-    bg.roundRect(-210, -58, 420, 116, 18).fill({ color: 0x06281a, alpha: 0.93 });
-    bg.roundRect(-210, -58, 420, 116, 18).stroke({ width: 3, color: 0xe8c56a, alpha: 0.9 });
+    bg.roundRect(-210, -58, 420, 116, 18).fill({ color: COLORS.feltDark, alpha: 0.93 });
+    bg.roundRect(-210, -58, 420, 116, 18).stroke({ width: 3, color: COLORS.gold, alpha: 0.9 });
     this.bannerTitle = new Text({
       text: '',
-      style: { fontFamily: 'Georgia, serif', fontSize: 42, fontWeight: 'bold', fill: 0xe8c56a },
+      style: { fontFamily: FONTS.cn, fontSize: 38, fontWeight: 'bold', fill: COLORS.gold },
     });
     this.bannerTitle.anchor.set(0.5);
     this.bannerTitle.position.set(0, -26);
     this.bannerSub = new Text({
       text: '',
-      style: { fontFamily: '"PingFang SC", sans-serif', fontSize: 18, fill: 0xf3ecd8 },
+      style: { fontFamily: FONTS.cn, fontSize: 18, fill: COLORS.text },
     });
     this.bannerSub.anchor.set(0.5);
     this.bannerSub.position.set(0, 26);
@@ -104,11 +104,11 @@ export class PokerHud extends Container {
   }
 
   setStack(v: number) {
-    this.stackText.text = `我的筹码  $${v}`;
+    this.stackText.text = `我的份额  ${v}`;
   }
 
   setPot(v: number) {
-    this.potText.text = v > 0 ? `底池  $${v}` : '';
+    this.potText.text = v > 0 ? `本轮池  ${v}` : '';
   }
 
   showBanner(title: string, sub: string, color: number) {

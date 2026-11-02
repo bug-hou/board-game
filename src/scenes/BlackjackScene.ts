@@ -1,5 +1,5 @@
 import { Application, Container, Sprite } from 'pixi.js';
-import { CARD_GAP, CARD_W, CHIP_DEFS, DESIGN_W, LAYOUT, START_BALANCE } from '../config';
+import { CARD_GAP, CARD_W, CHIP_DEFS, COLORS, DESIGN_W, LAYOUT, PENALTY, START_BALANCE } from '../config';
 import { BACK_TEXTURE_NAME, cardTexture } from '../core/atlas';
 import { DragManager } from '../core/drag';
 import { Easing, TweenManager } from '../core/tween';
@@ -83,7 +83,7 @@ export class BlackjackScene implements Scene {
       label: '返回大厅',
       width: 118,
       height: 40,
-      color: 0xb9a06a,
+      color: COLORS.wood,
       fontSize: 15,
     });
     this.exitBtn.position.set(DESIGN_W - 96, 34);
@@ -92,7 +92,7 @@ export class BlackjackScene implements Scene {
 
     this.hud.setBalance(this.balance);
     this.hud.setBet(0);
-    this.hud.showMessage('拖拽或点击筹码下注');
+    this.hud.showMessage(`把「${PENALTY.label}」拖进圈里，再点发牌`);
   }
 
   private buildShoeVisual() {
@@ -123,7 +123,7 @@ export class BlackjackScene implements Scene {
             Math.hypot(local.x - LAYOUT.betCircle.x, local.y - LAYOUT.betCircle.y) < 62;
           if (inCircle) {
             if (!this.tryAddBet(def.value)) {
-              this.hud.showMessage('筹码不足，无法下注');
+              this.hud.showMessage('份额不够啦，先减少一点');
             }
           }
           this.tweens.to(chip, { x: homeX, y: homeY, rotation: 0 }, { duration: 260, ease: Easing.backOut });
@@ -131,7 +131,7 @@ export class BlackjackScene implements Scene {
       });
       this.drag.onClick(chip, () => {
         if (this.state !== 'betting') return;
-        if (!this.tryAddBet(def.value)) this.hud.showMessage('筹码不足，无法下注');
+        if (!this.tryAddBet(def.value)) this.hud.showMessage('份额不够啦，先减少一点');
       });
     });
   }
@@ -149,12 +149,12 @@ export class BlackjackScene implements Scene {
       return b;
     };
 
-    this.dealBtn = mk('发 牌', 0, 0xe8c56a, () => void this.startRound());
-    this.clearBtn = mk('清除下注', 1, 0xb9a06a, () => this.clearBet());
-    this.hitBtn = mk('要 牌', 0, 0x6fd08c, () => void this.onHit());
-    this.standBtn = mk('停 牌', 1, 0xe0a455, () => void this.onStand());
-    this.doubleBtn = mk('加 倍', 2, 0x7fb2e0, () => void this.onDouble());
-    this.nextBtn = mk('下一局', 0, 0xe8c56a, () => void this.toNextRound());
+    this.dealBtn = mk('发 牌', 0, COLORS.gold, () => void this.startRound());
+    this.clearBtn = mk('清 空', 1, COLORS.wood, () => this.clearBet());
+    this.hitBtn = mk('要 牌', 0, COLORS.success, () => void this.onHit());
+    this.standBtn = mk('停 牌', 1, COLORS.warn, () => void this.onStand());
+    this.doubleBtn = mk('加 倍', 2, 0x8fb4d8, () => void this.onDouble());
+    this.nextBtn = mk('下一局', 0, COLORS.gold, () => void this.toNextRound());
   }
 
   // ---------- 下注 ----------
@@ -265,7 +265,7 @@ export class BlackjackScene implements Scene {
     this.hud.hideBanner();
     this.setState('betting');
     this.dealBtn.setEnabled(this.bet > 0);
-    this.hud.showMessage(this.bet > 0 ? '调整下注后点击发牌' : '拖拽或点击筹码下注');
+    this.hud.showMessage(this.bet > 0 ? '调整好后点击发牌' : `把「${PENALTY.label}」拖进圈里`);
   }
 
   private async startRound() {
@@ -296,7 +296,7 @@ export class BlackjackScene implements Scene {
       return;
     }
     if (isBlackjack(this.playerHand.map((e) => e.card))) {
-      this.hud.showMessage('Blackjack！');
+      this.hud.showMessage('21 点！');
       await this.revealHole();
       await delay(400);
       await this.settle();
@@ -356,7 +356,7 @@ export class BlackjackScene implements Scene {
 
   private async dealerTurn() {
     this.setState('dealer');
-    this.hud.showMessage('庄家行动…');
+    this.hud.showMessage('发牌方行动…');
     await this.revealHole();
     await delay(400);
     while (handValue(this.dealerHand.map((e) => e.card)).total < 17) {
@@ -390,29 +390,29 @@ export class BlackjackScene implements Scene {
     switch (outcome.type) {
       case 'playerBlackjack':
         this.balance += b + outcome.payout;
-        this.hud.showBanner('BLACKJACK!', `赢得 $${outcome.payout}`, 0xffd86a);
+        this.hud.showBanner('21 点！', `对方多做 ${outcome.payout} ${PENALTY.unit}`, COLORS.gold);
         await this.sweepBetChips(true);
         break;
       case 'win':
         this.balance += b + outcome.payout;
-        this.hud.showBanner('你赢了', `+$${outcome.payout}`, 0x6fd08c);
+        this.hud.showBanner('你赢了', `对方多做 ${outcome.payout} ${PENALTY.unit}`, COLORS.success);
         await this.sweepBetChips(true);
         break;
       case 'dealerBust':
         this.balance += b + outcome.payout;
-        this.hud.showBanner('庄家爆牌', `+$${outcome.payout}`, 0x6fd08c);
+        this.hud.showBanner('发牌方爆牌', `对方多做 ${outcome.payout} ${PENALTY.unit}`, COLORS.success);
         await this.sweepBetChips(true);
         break;
       case 'push':
         this.balance += b;
-        this.hud.showBanner('平 局', '退还下注', 0xd8d0b8);
+        this.hud.showBanner('平 局', '这局扯平，谁都不用做', COLORS.textDim);
         break;
       case 'playerBust':
-        this.hud.showBanner('爆 牌', `-$${b}`, 0xe05555);
+        this.hud.showBanner('爆 牌', `你要做 ${b} ${PENALTY.unit}`, COLORS.danger);
         await this.sweepBetChips(false);
         break;
       case 'lose':
-        this.hud.showBanner('你输了', `-$${b}`, 0xe05555);
+        this.hud.showBanner('你输了', `你要做 ${b} ${PENALTY.unit}`, COLORS.danger);
         await this.sweepBetChips(false);
         break;
     }

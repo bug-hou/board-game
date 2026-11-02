@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { COLORS, DESIGN_H, DESIGN_W, LAYOUT } from '../config';
+import { COLORS, DESIGN_H, DESIGN_W, FONTS, LAYOUT, PENALTY } from '../config';
 
-/** 牌桌背景与区域装饰 */
+/** 牌桌背景与区域装饰（低饱和抹茶绿，不用赌场黑金） */
 export class Table extends Container {
   constructor() {
     super();
@@ -11,30 +11,29 @@ export class Table extends Container {
     g.circle(DESIGN_W / 2, DESIGN_H * 0.42, 620).fill(COLORS.felt);
     g.circle(DESIGN_W / 2, DESIGN_H * 0.42, 500).fill(COLORS.feltLight);
 
-    // 金色装饰弧线
-    g.circle(DESIGN_W / 2, DESIGN_H * 0.42, 470).stroke({ width: 3, color: 0xe8c56a, alpha: 0.4 });
-    g.circle(DESIGN_W / 2, DESIGN_H * 0.42, 456).stroke({ width: 1.5, color: 0xe8c56a, alpha: 0.25 });
+    // 装饰弧线
+    g.circle(DESIGN_W / 2, DESIGN_H * 0.42, 470).stroke({ width: 3, color: COLORS.gold, alpha: 0.35 });
+    g.circle(DESIGN_W / 2, DESIGN_H * 0.42, 456).stroke({ width: 1.5, color: COLORS.gold, alpha: 0.22 });
 
     this.addChild(g);
 
-    // 中央标语弧线文字（用两行静态文字近似）
     const slogan = new Text({
-      text: 'BLACKJACK  PAYS  3  TO  2',
+      text: '越接近 21 点越好 · 超过就爆牌',
       style: {
-        fontFamily: 'Georgia, "Times New Roman", serif',
-        fontSize: 26,
+        fontFamily: FONTS.cn,
+        fontSize: 22,
         fontWeight: 'bold',
-        fill: 0xe8c56a,
+        fill: COLORS.gold,
         letterSpacing: 4,
       },
     });
     slogan.anchor.set(0.5);
-    slogan.alpha = 0.55;
+    slogan.alpha = 0.5;
     slogan.position.set(DESIGN_W / 2, 348);
     this.addChild(slogan);
 
-    const dealerTag = this.makeZoneTag('庄  家', LAYOUT.dealer.x, LAYOUT.dealer.y - 108);
-    const playerTag = this.makeZoneTag('玩  家', LAYOUT.player.x, LAYOUT.player.y + 108);
+    const dealerTag = this.makeZoneTag('发 牌 方', LAYOUT.dealer.x, LAYOUT.dealer.y - 108);
+    const playerTag = this.makeZoneTag('我', LAYOUT.player.x, LAYOUT.player.y + 108);
     this.addChild(dealerTag, playerTag);
 
     this.addChild(this.makeBetCircle());
@@ -45,9 +44,9 @@ export class Table extends Container {
     const t = new Text({
       text,
       style: {
-        fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: 20,
-        fill: 0xe8c56a,
+        fill: COLORS.gold,
         letterSpacing: 6,
       },
     });
@@ -57,7 +56,7 @@ export class Table extends Container {
     return t;
   }
 
-  /** 虚线下注圈 */
+  /** 虚线惩罚圈 */
   private makeBetCircle() {
     const g = new Graphics();
     const { x, y } = LAYOUT.betCircle;
@@ -66,15 +65,15 @@ export class Table extends Container {
     for (let i = 0; i < seg; i++) {
       const a0 = (i / seg) * Math.PI * 2;
       const a1 = a0 + (Math.PI * 2 / seg) * 0.62;
-      g.arc(x, y, r, a0, a1).stroke({ width: 2.5, color: 0xe8c56a, alpha: 0.65 });
+      g.arc(x, y, r, a0, a1).stroke({ width: 2.5, color: COLORS.gold, alpha: 0.6 });
     }
     const label = new Text({
-      text: 'BET',
+      text: PENALTY.unit,
       style: {
-        fontFamily: 'Arial, sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: 15,
         fontWeight: 'bold',
-        fill: 0xe8c56a,
+        fill: COLORS.gold,
         letterSpacing: 3,
       },
     });
@@ -90,8 +89,8 @@ export class Table extends Container {
   private makeShoeBox() {
     const g = new Graphics();
     const { x, y } = LAYOUT.shoe;
-    g.roundRect(x - 62, y - 78, 116, 152, 10).fill({ color: 0x06281a, alpha: 0.85 });
-    g.roundRect(x - 62, y - 78, 116, 152, 10).stroke({ width: 2, color: 0xe8c56a, alpha: 0.4 });
+    g.roundRect(x - 62, y - 78, 116, 152, 10).fill({ color: COLORS.feltDark, alpha: 0.85 });
+    g.roundRect(x - 62, y - 78, 116, 152, 10).stroke({ width: 2, color: COLORS.gold, alpha: 0.4 });
     return g;
   }
 }

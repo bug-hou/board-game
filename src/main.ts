@@ -1,9 +1,9 @@
 import { Application, Container } from 'pixi.js';
-import { DESIGN_H, DESIGN_W } from './config';
+import { COLORS, DESIGN_H, DESIGN_W } from './config';
 import { loadAtlas } from './core/atlas';
 import { BlackjackScene } from './scenes/BlackjackScene';
 import { HoldemScene } from './scenes/HoldemScene';
-import { ModeSelectScene, type GameMode } from './scenes/ModeSelectScene';
+import { HomeScene, type GameMode } from './scenes/HomeScene';
 import type { Scene } from './scenes/Scene';
 
 /** 场景切换：同一时刻只挂载一个场景 */
@@ -30,7 +30,7 @@ class SceneRouter {
 async function main() {
   const app = new Application();
   await app.init({
-    background: '#0a2e1f',
+    background: `#${COLORS.cream.toString(16).padStart(6, '0')}`,
     resizeTo: window,
     antialias: true,
     resolution: Math.min(window.devicePixelRatio || 1, 2),
@@ -54,7 +54,7 @@ async function main() {
 
   const router = new SceneRouter(app);
   const toLobby = () => {
-    void router.go(() => new ModeSelectScene(app, { onStart }));
+    void router.go(() => new HomeScene(app, { onStart }));
   };
   const onStart = (mode: GameMode, aiCount: number) => {
     if (mode === 'blackjack') {
@@ -64,7 +64,7 @@ async function main() {
     }
   };
 
-  await router.go(() => new ModeSelectScene(app, { onStart }));
+  await router.go(() => new HomeScene(app, { onStart }));
 
   const boot = document.getElementById('boot');
   boot?.classList.add('hidden');

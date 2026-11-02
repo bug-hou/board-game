@@ -1,6 +1,8 @@
 import { Application, Container, Sprite } from 'pixi.js';
 import {
   BIG_BLIND,
+  COLORS,
+  PENALTY,
   POKER_CHIP_DEFS,
   POKER_LAYOUT,
   POKER_START_STACK,
@@ -135,7 +137,7 @@ export class HoldemScene implements Scene {
       label: '返回大厅',
       width: 118,
       height: 40,
-      color: 0xb9a06a,
+      color: COLORS.wood,
       fontSize: 15,
     });
     this.exitBtn.position.set(POKER_LAYOUT.exit.x, POKER_LAYOUT.exit.y);
@@ -271,11 +273,11 @@ export class HoldemScene implements Scene {
   private showAction(p: Seat, action: Action) {
     const sv = this.seatViews.get(p.id)!;
     let text = ACTION_TEXT[action.type];
-    if (action.type === 'call') text = `跟注 $${Math.min(this.engine.currentBet, p.bet)}`;
-    if (action.type === 'raise') text = `加注至 $${p.bet}`;
-    sv.setStatus(text, action.type === 'fold' ? 0xa89b80 : 0xffd86a);
+    if (action.type === 'call') text = `跟注 ${Math.min(this.engine.currentBet, p.bet)}`;
+    if (action.type === 'raise') text = `加注至 ${p.bet}`;
+    sv.setStatus(text, action.type === 'fold' ? COLORS.disabled : COLORS.gold);
     if (action.type === 'fold') sv.setFolded(true);
-    if (action.type === 'allin') sv.setStatus('全下', 0xd08fe0);
+    if (action.type === 'allin') sv.setStatus('全下', 0xd8b0e2);
     this.hud.setMessage(`${p.name} ${text}`);
   }
 
@@ -284,7 +286,7 @@ export class HoldemScene implements Scene {
   private humanAction(p: Seat): Promise<Action> {
     const legal = this.engine.legalActions(p);
     this.bar.showMain(legal, p.stack);
-    this.hud.setMessage(legal.canCheck ? '轮到你：过牌 / 加注' : `轮到你：跟注 $${legal.toCall} / 加注`);
+    this.hud.setMessage(legal.canCheck ? '轮到你：过牌 / 加注' : `轮到你：跟注 ${legal.toCall} / 加注`);
     return new Promise<Action>((resolve) => {
       this.humanResolve = resolve;
     });
@@ -324,7 +326,7 @@ export class HoldemScene implements Scene {
 
   private onChipTap(value: number) {
     if (!this.raiseMode || !this.raiseLegal) {
-      this.hud.setMessage('先点「加注」，再点筹码设置加注额');
+      this.hud.setMessage(`先点「加注」，再点${PENALTY.label}设置加注额`);
       return;
     }
     const legal = this.engine.legalActions(this.hero);
@@ -338,7 +340,7 @@ export class HoldemScene implements Scene {
     const legal = this.engine.legalActions(this.hero);
     const capped = this.raiseAmount >= legal.maxRaiseTo;
     this.hud.setMessage(
-      `加注至 $${this.raiseAmount}${capped ? '（全下）' : ` · 最少 $${legal.minRaiseTo}`} · 点筹码加额`,
+      `加注至 ${this.raiseAmount}${capped ? '（全下）' : ` · 最少 ${legal.minRaiseTo}`} · 点${PENALTY.label}加额`,
     );
   }
 
@@ -379,7 +381,7 @@ export class HoldemScene implements Scene {
 
   private async aiAction(p: Seat): Promise<Action> {
     const sv = this.seatViews.get(p.id)!;
-    sv.setStatus('思考中…', 0x9fd8b4);
+    sv.setStatus('思考中…', COLORS.success);
     await this.delay(420 + Math.random() * 520);
     if (this.destroyed) return { type: 'fold' };
     const profile = this.profiles.get(p.id) ?? randomProfile();
@@ -455,7 +457,7 @@ export class HoldemScene implements Scene {
     }
     for (const pot of result.pots) {
       for (const id of pot.winnerIds) {
-        this.seatViews.get(id)?.setStatus('赢', 0x6fd08c);
+        this.seatViews.get(id)?.setStatus('赢', COLORS.success);
       }
     }
     this.refreshStacks();
@@ -465,14 +467,18 @@ export class HoldemScene implements Scene {
     const invested = this.engine.players[0].committed;
     if (gain > 0) {
       const net = gain - invested;
-      this.hud.showBanner('你赢了！', `+$${net >= 0 ? net : gain}`, 0x6fd08c);
+      this.hud.showBanner('你赢了！', `对方多做 ${net >= 0 ? net : gain} ${PENALTY.unit}`, COLORS.success);
     } else if (this.hero.folded) {
-      this.hud.showBanner('已弃牌', `-$${invested}`, 0xe05555);
+      this.hud.showBanner('已弃牌', `你要做 ${invested} ${PENALTY.unit}`, COLORS.danger);
     } else {
       const names = result.pots
         .filter((p) => p.winnerIds.length)
         .map((p) => this.engine.players[p.winnerIds[0]].name);
-      this.hud.showBanner(`${[...new Set(names)].join(' / ')} 获胜`, `-$${invested}`, 0xe0a455);
+      this.hud.showBanner(
+        `${[...new Set(names)].join(' / ')} 获胜`,
+        `你要做 ${invested} ${PENALTY.unit}`,
+        COLORS.warn,
+      );
     }
     await this.delay(600);
   }
@@ -486,19 +492,20 @@ export class HoldemScene implements Scene {
     if (!winner) return;
     this.seatViews.get(winner.id)?.setStatus('赢', 0x6fd08c);
     if (winner.isHuman) {
-      this.hud.showBanner('你赢了！', `+$${res.amount - this.hero.committed}`, 0x6fd08c);
+      const net = res.amount - this.hero.committed;
+      this.hud.showBanner('你赢了！', `对方多做 ${net} ${PENALTY.unit}`, COLORS.success);
     } else if (this.hero.folded) {
-      this.hud.showBanner(`${winner.name} 获胜`, `-$${this.hero.committed}`, 0xe05555);
+      this.hud.showBanner(`${winner.name} 获胜`, `你要做 ${this.hero.committed} ${PENALTY.unit}`, COLORS.danger);
     } else {
-      this.hud.showBanner(`${winner.name} 获胜`, ``, 0xe0a455);
+      this.hud.showBanner(`${winner.name} 获胜`, `你要做 ${this.hero.committed} ${PENALTY.unit}`, COLORS.warn);
     }
     await this.delay(500);
   }
 
   private async gameOver(win: boolean) {
     this.bar.hide();
-    if (win) this.hud.showBanner('通杀全场！', '所有对手都已出局', 0x6fd08c);
-    else this.hud.showBanner('筹码用尽', '返回大厅再来一局', 0xe05555);
+    if (win) this.hud.showBanner('通杀全场！', '所有对手都已出局', COLORS.success);
+    else this.hud.showBanner('份额用尽', '返回首页再来一局', COLORS.danger);
     await this.delay(1600);
     if (!this.destroyed) this.opts.onExit();
   }

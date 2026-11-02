@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { POKER_LAYOUT } from '../../config';
+import { COLORS, FONTS, POKER_LAYOUT } from '../../config';
 import { Easing, type TweenManager } from '../../core/tween';
 import type { Card } from '../../game/cards';
 import type { Seat } from '../../game/holdem/engine';
@@ -54,24 +54,24 @@ export class SeatView extends Container {
 
     // 名牌
     const plateBg = new Graphics();
-    plateBg.roundRect(-70, -17, 140, 34, 10).fill({ color: 0x06281a, alpha: 0.88 });
-    plateBg.roundRect(-70, -17, 140, 34, 10).stroke({ width: 1.5, color: 0xe8c56a, alpha: 0.5 });
+    plateBg.roundRect(-70, -17, 140, 34, 10).fill({ color: COLORS.feltDark, alpha: 0.88 });
+    plateBg.roundRect(-70, -17, 140, 34, 10).stroke({ width: 1.5, color: COLORS.gold, alpha: 0.5 });
     this.plate.addChild(plateBg);
     this.plate.position.set(0, this.plateY);
     this.nameText = new Text({
       text: opts.seat.name,
       style: {
-        fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: opts.isHero ? 16 : 15,
         fontWeight: 'bold',
-        fill: 0xf3ecd8,
+        fill: COLORS.text,
       },
     });
     this.nameText.anchor.set(0, 0.5);
     this.nameText.position.set(-60, 0);
     this.stackText = new Text({
-      text: '$0',
-      style: { fontFamily: 'Arial, sans-serif', fontSize: 14, fontWeight: 'bold', fill: 0xe8c56a },
+      text: '0',
+      style: { fontFamily: FONTS.cn, fontSize: 14, fontWeight: 'bold', fill: COLORS.gold },
     });
     this.stackText.anchor.set(1, 0.5);
     this.stackText.position.set(60, 0);
@@ -81,10 +81,10 @@ export class SeatView extends Container {
     this.statusText = new Text({
       text: '',
       style: {
-        fontFamily: '"PingFang SC", sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: 13,
         fontWeight: 'bold',
-        fill: 0xf0c987,
+        fill: COLORS.gold,
       },
     });
     this.statusText.anchor.set(0.5);
@@ -94,10 +94,10 @@ export class SeatView extends Container {
     this.handText = new Text({
       text: '',
       style: {
-        fontFamily: '"PingFang SC", sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: 14,
         fontWeight: 'bold',
-        fill: 0x6fd08c,
+        fill: COLORS.success,
       },
     });
     this.handText.anchor.set(0.5);
@@ -105,12 +105,12 @@ export class SeatView extends Container {
     this.addChild(this.handText);
 
     // 本轮下注：摆在底牌右侧
-    this.betChip.circle(0, 0, 13).fill(0xe8c56a);
-    this.betChip.circle(0, 0, 13).stroke({ width: 2, color: 0xffffff, alpha: 0.6 });
-    this.betChip.circle(0, 0, 6).fill(0x9a7d33);
+    this.betChip.circle(0, 0, 13).fill(COLORS.gold);
+    this.betChip.circle(0, 0, 13).stroke({ width: 2, color: COLORS.white, alpha: 0.6 });
+    this.betChip.circle(0, 0, 6).fill(COLORS.woodDeep);
     this.betText = new Text({
       text: '',
-      style: { fontFamily: 'Arial, sans-serif', fontSize: 14, fontWeight: 'bold', fill: 0x1a1206 },
+      style: { fontFamily: FONTS.cn, fontSize: 14, fontWeight: 'bold', fill: COLORS.ink },
     });
     this.betText.anchor.set(0.5);
     this.betText.position.set(0, 24);
@@ -146,13 +146,13 @@ export class SeatView extends Container {
     if (!active) return;
     this.ring
       .roundRect(-w, -h, w * 2, h * 2, 16)
-      .stroke({ width: 3, color: 0xffd86a, alpha: 0.95 });
+      .stroke({ width: 3, color: COLORS.gold, alpha: 0.95 });
   }
 
   // ---------- 状态 ----------
 
   setStack(v: number) {
-    this.stackText.text = `$${v}`;
+    this.stackText.text = `${v}`;
   }
 
   setActive(on: boolean) {
@@ -163,7 +163,7 @@ export class SeatView extends Container {
     this.dealerBtn.visible = on;
   }
 
-  setStatus(text: string, color = 0xf0c987) {
+  setStatus(text: string, color = COLORS.gold) {
     this.statusText.text = text;
     (this.statusText.style as { fill: number }).fill = color;
   }
@@ -174,7 +174,7 @@ export class SeatView extends Container {
 
   setBet(v: number) {
     this.betBox.visible = v > 0;
-    this.betText.text = `$${v}`;
+    this.betText.text = `${v}`;
     if (v > 0) {
       this.betBox.scale.set(0.7);
       this.opts.tweens.to(this.betBox.scale, { x: 1, y: 1 }, { duration: 220, ease: Easing.backOut });
@@ -183,7 +183,7 @@ export class SeatView extends Container {
 
   setFolded(on: boolean) {
     this.alpha = on ? 0.4 : 1;
-    if (on) this.setStatus('弃牌', 0xa89b80);
+    if (on) this.setStatus('弃牌', COLORS.disabled);
   }
 
   // ---------- 底牌 ----------

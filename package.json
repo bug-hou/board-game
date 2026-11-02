@@ -9,7 +9,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "zip": "npm run build && cd dist && zip -r -X ../pixi-blackjack-makers.zip . && cd ..",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:server": "rm -rf .deploy && mkdir -p .deploy/server .deploy/src/game && cp -r server/src server/package.json server/tsconfig.json .deploy/server/ && cp -r src/game/. .deploy/src/game/",
+    "deploy:server": "npm run build:server && ~/.codebuddy/skills/lighthouse-deploy/scripts/deploy.sh bj-server ./.deploy 8080 api.game.convenience.top server"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"

@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import { COLORS, FONTS } from '../config';
 
 interface ButtonOptions {
   label: string;
@@ -21,16 +22,16 @@ export class ButtonView extends Container {
     super();
     this.w = opts.width ?? 132;
     this.h = opts.height ?? 48;
-    this.baseColor = opts.color ?? 0xe8c56a;
+    this.baseColor = opts.color ?? COLORS.coral;
 
     this.bg = new Graphics();
     this.labelText = new Text({
       text: opts.label,
       style: {
-        fontFamily: '"PingFang SC", "Microsoft YaHei", Arial, sans-serif',
+        fontFamily: FONTS.cn,
         fontSize: opts.fontSize ?? 20,
         fontWeight: 'bold',
-        fill: 0x14240f,
+        fill: COLORS.ink,
       },
     });
     this.labelText.anchor.set(0.5);
@@ -51,7 +52,7 @@ export class ButtonView extends Container {
   }
 
   private redraw(mul: number) {
-    const c = this.enabled ? this.baseColor : 0x6a6a5e;
+    const c = this.enabled ? this.baseColor : COLORS.disabled;
     this.bg.clear();
     this.bg.roundRect(-this.w / 2, -this.h / 2, this.w, this.h, 12).fill(c);
     this.bg

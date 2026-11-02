@@ -1,5 +1,5 @@
 import { Container } from 'pixi.js';
-import { POKER_LAYOUT } from '../../config';
+import { COLORS, POKER_LAYOUT } from '../../config';
 import { ButtonView } from '../ButtonView';
 import type { LegalActions } from '../../game/holdem/engine';
 
@@ -15,14 +15,14 @@ const LABELS: Record<Slot, string> = {
   next: '下一手',
 };
 
-const COLORS: Record<Slot, number> = {
-  fold: 0xb9564c,
-  call: 0x6fd08c,
-  raise: 0xe0a455,
-  allin: 0xc06fd0,
-  confirm: 0x6fd08c,
-  cancel: 0x9a8f72,
-  next: 0xe8c56a,
+const SLOT_COLORS: Record<Slot, number> = {
+  fold: COLORS.danger,
+  call: COLORS.success,
+  raise: COLORS.warn,
+  allin: 0xb98ac4,
+  confirm: COLORS.success,
+  cancel: COLORS.wood,
+  next: COLORS.gold,
 };
 
 /** 底部操作栏：弃牌 / 过牌·跟注 / 加注 / 全下，以及加注确认、下一手 */
@@ -40,7 +40,7 @@ export class ActionBar extends Container {
   constructor() {
     super();
     (['fold', 'call', 'raise', 'allin'] as Slot[]).forEach((s) => {
-      const b = this.make(s, COLORS[s]);
+      const b = this.make(s, SLOT_COLORS[s]);
       b.on('pointerup', () => {
         if (!b.enabled) return;
         if (s === 'fold') this.onFold();
@@ -49,11 +49,11 @@ export class ActionBar extends Container {
         else this.onAllIn();
       });
     });
-    const confirm = this.make('confirm', COLORS.confirm);
+    const confirm = this.make('confirm', SLOT_COLORS.confirm);
     confirm.on('pointerup', () => confirm.enabled && this.onConfirmRaise());
-    const cancel = this.make('cancel', COLORS.cancel);
+    const cancel = this.make('cancel', SLOT_COLORS.cancel);
     cancel.on('pointerup', () => cancel.enabled && this.onCancelRaise());
-    const next = this.make('next', COLORS.next);
+    const next = this.make('next', SLOT_COLORS.next);
     next.on('pointerup', () => next.enabled && this.onNext());
     this.visible = false;
   }
@@ -90,7 +90,7 @@ export class ActionBar extends Container {
   /** 显示主操作，根据是否可过牌决定第二个按钮文案 */
   showMain(legal: LegalActions, stack: number) {
     const callBtn = this.buttons.get('call')!;
-    callBtn.setLabel(legal.canCheck ? '过 牌' : `跟注 $${legal.toCall}`);
+    callBtn.setLabel(legal.canCheck ? '过 牌' : `跟注 ${legal.toCall}`);
     this.place(['fold', 'call', 'raise', 'allin']);
     this.buttons.get('raise')!.setEnabled(legal.canRaise);
     this.buttons.get('call')!.setEnabled(legal.canCheck || stack > 0);

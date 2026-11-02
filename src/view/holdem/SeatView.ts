@@ -36,6 +36,8 @@ export class SeatView extends Container {
   private gap: number;
   private plateY: number;
   private homes: { x: number; y: number }[] = [];
+  /** 发牌动画结束后是否要翻开底牌（仅自己的牌） */
+  private revealOnDeal = false;
 
   constructor(private opts: SeatViewOptions) {
     super();
@@ -193,8 +195,11 @@ export class SeatView extends Container {
    */
   setHole(cards: Card[], faceUp: boolean, from?: { x: number; y: number }) {
     this.clearCards();
+    // 走发牌动画时先统一以背面创建，落座后再翻开属于自己的牌
+    this.revealOnDeal = Boolean(from) && faceUp;
+    const initialFaceUp = from ? false : faceUp;
     cards.forEach((c, i) => {
-      const v = new CardView(this.opts.tweens, c, faceUp);
+      const v = new CardView(this.opts.tweens, c, initialFaceUp);
       v.scale.set(this.scaleFactor);
       const home = { x: (i - (cards.length - 1) / 2) * this.gap, y: 0 };
       this.cardLayer.addChild(v);
@@ -218,6 +223,8 @@ export class SeatView extends Container {
       v.position.set(from.x - this.x, from.y - this.y);
       v.rotation = -0.5;
       await v.flyTo(this.homes[i], 0, 340, -80);
+      // 自己的牌落座后再翻开，别人的牌保持背面
+      if (this.revealOnDeal) await v.flip(true, 220);
     }
   }
 

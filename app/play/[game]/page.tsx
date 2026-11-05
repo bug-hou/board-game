@@ -282,14 +282,18 @@ function OnlineSix({ roomId }: { roomId: string }) {
   const isHost = !!user && !!room && room.hostId === user.id;
   const view = table.view;
 
-  // 卡住的是迟迟不锁分组的人；房主等满 60 秒可替他按默认顺序分组
+  // 分组阶段卡在没锁分组的人；加倍阶段卡在轮到却迟迟不表态的人
   const pending = React.useMemo(() => {
     if (!view || view.phase === 'showdown') return null;
-    return view.players.find((p) => p.id !== view.you && !p.submitted) ?? null;
+    if (view.phase === 'grouping') {
+      return view.players.find((p) => p.id !== view.you && !p.submitted) ?? null;
+    }
+    if (view.doubleTurn === null || view.doubleTurn === view.you) return null;
+    return view.players.find((p) => p.id === view.doubleTurn) ?? null;
   }, [view]);
 
   const [waited, setWaited] = React.useState(0);
-  const waitingKey = pending ? `${view?.roundNo}-${pending.id}` : null;
+  const waitingKey = pending ? `${view?.roundNo}-${view?.phase}-${pending.id}` : null;
   React.useEffect(() => {
     setWaited(0);
     if (!waitingKey) return;

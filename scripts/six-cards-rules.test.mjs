@@ -7,6 +7,7 @@ import {
   evalHalfPoint,
   evalSingle,
   evalZjh,
+  multiplierOf,
   settleRound,
   splitByOrder,
   zjhWinners,
@@ -149,6 +150,26 @@ test('多个输家时分数仍守恒，赢家拿走全部输家付出的分', ()
   assert.equal(r.delta.reduce((x, y) => x + y, 0), 0);
   assert.deepEqual(r.delta, [18, -9, -9]);
   assert.equal(r.groups.triple.winners[0], 0);
+});
+
+test('加倍倍率：1 次 2 倍、2 次 4 倍、3 次 6 倍，无人加倍 1 倍', () => {
+  assert.equal(multiplierOf(0), 1);
+  assert.equal(multiplierOf(1), 2);
+  assert.equal(multiplierOf(2), 4);
+  assert.equal(multiplierOf(3), 6);
+  assert.equal(multiplierOf(4), 8);
+});
+
+test('本局倍率对三组一视同仁，翻完仍然守恒', () => {
+  const winner = groups(S('a'), [S('10'), H('k')], [S('a'), H('a'), D('a')]);
+  const loser = groups(S('2'), [S('a'), H('2')], [S('2'), H('3'), D('4')]);
+  const base = settleRound([winner, loser, loser]);
+  const doubled = settleRound([winner, loser, loser], 6);
+  assert.deepEqual(base.delta, [18, -9, -9]);
+  assert.deepEqual(doubled.delta, base.delta.map((d) => d * 6));
+  assert.equal(doubled.delta.reduce((x, y) => x + y, 0), 0);
+  // 牌型判定不受倍率影响
+  assert.deepEqual(doubled.groups.triple.winners, base.groups.triple.winners);
 });
 
 test('235 反杀豹子会体现在第三组结算里', () => {

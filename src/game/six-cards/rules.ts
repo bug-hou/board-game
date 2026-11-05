@@ -10,6 +10,8 @@
  *
  * 逐组结算，三组权重分别是 1 / 3 / 5 分：每组输家各付出该组权重，
  * 由该组赢家均分；全员并列或全员爆牌时本组不转移分数。
+ * 开牌前所有人可以表态加倍，本局倍率 = 2 × 加倍次数（无人加倍为 1 倍），
+ * 三组分数一起乘倍率，因此仍然守恒。
  */
 import type { Card } from '../cards';
 
@@ -305,8 +307,17 @@ function finish(
   return { key, weight, winners, push, labels, marks, note };
 }
 
+/**
+ * 加倍次数 → 本局倍率：无人加倍 1 倍，1 次 2 倍、2 次 4 倍、3 次 6 倍……
+ * 头家在全员加倍后的第二次机会也算一次加倍。
+ */
+export function multiplierOf(doubleCount: number): number {
+  if (!Number.isFinite(doubleCount) || doubleCount <= 0) return 1;
+  return 2 * Math.trunc(doubleCount);
+}
+
 /** 结算一整局。groups[i] 为 null 表示此人未提交分组，三组都按最差处理 */
-export function settleRound(allGroups: (Groups | null)[]): RoundSettlement {
+export function settleRound(allGroups: (Groups | null)[], multiplier = 1): RoundSettlement {
   const n = allGroups.length;
   const delta = new Array<number>(n).fill(0);
   const outcomes = {} as Record<GroupKey, GroupOutcome>;
@@ -346,5 +357,10 @@ export function settleRound(allGroups: (Groups | null)[]): RoundSettlement {
     );
   }
 
+  // 倍率对三组一视同仁，统一缩放后分数仍守恒
+  const factor = Number.isFinite(multiplier) ? Math.max(1, Math.trunc(multiplier)) : 1;
+  if (factor > 1) {
+    for (let i = 0; i < delta.length; i++) delta[i] *= factor;
+  }
   return { groups: outcomes, delta };
 }

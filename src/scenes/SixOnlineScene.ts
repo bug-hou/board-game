@@ -46,7 +46,7 @@ function makeText(text: string, size: number, color: number, bold = false): Text
 
 /**
  * 六张牌联机牌桌：前端只负责「把 6 张牌分进三个槽位」的草稿与渲染，
- * 发牌、开牌、牌型比较与结算全在服务端（server/src/games/six-session.ts）。
+ * 发牌、加倍表态、开牌、牌型比较与结算全在服务端（server/src/games/six-session.ts）。
  *
  * 草稿用「手牌下标」表示，提交时拼成 order，客户端拿不到也改不了别人的牌。
  */
@@ -64,6 +64,8 @@ export class SixOnlineScene implements Scene {
   private resultTexts: Text[] = [];
   private infoText!: Text;
   private infoSub!: Text;
+  private doubleText!: Text;
+  private resultFoot!: Text;
   private logText!: Text;
 
   /** 三个槽位里的手牌下标；只在本地保存，未提交前服务端不知道 */
@@ -137,7 +139,10 @@ export class SixOnlineScene implements Scene {
     this.infoSub = makeText('', 17, COLORS.textDim);
     this.infoSub.anchor.set(0.5);
     this.infoSub.position.set(DESIGN_W / 2, 286);
-    this.infoLayer.addChild(this.infoText, this.infoSub);
+    this.doubleText = makeText('', 17, COLORS.text);
+    this.doubleText.anchor.set(0.5);
+    this.doubleText.position.set(DESIGN_W / 2, 348);
+    this.infoLayer.addChild(this.infoText, this.infoSub, this.doubleText);
 
     this.logText = makeText('', 13, COLORS.textDim);
     this.logText.alpha = 0.8;
@@ -158,7 +163,9 @@ export class SixOnlineScene implements Scene {
       detail.position.set(278, 210 + i * 88);
       this.resultTexts.push(head, detail);
     }
-    this.resultLayer.addChild(...this.resultTexts);
+    this.resultFoot = makeText('', 16, COLORS.gold, true);
+    this.resultFoot.position.set(278, 412);
+    this.resultLayer.addChild(...this.resultTexts, this.resultFoot);
     this.resultLayer.visible = false;
   }
 
@@ -189,6 +196,8 @@ export class SixOnlineScene implements Scene {
       this.refreshMyArea();
     });
     mk('submit', '锁定分组', COLORS.gold, () => this.submit());
+    mk('double', '加 倍', COLORS.coral, () => this.opts.onAct({ type: 'double' }));
+    mk('pass', '不加倍', COLORS.wood, () => this.opts.onAct({ type: 'pass' }));
   }
 
   // ---------- 视图同步 ----------
@@ -220,9 +229,15 @@ export class SixOnlineScene implements Scene {
         t.text = '';
         return;
       }
-      const mark = view.phase === 'showdown'
-        ? p.delta === null ? '' : p.delta > 0 ? ` +${p.delta}` : p.delta < 0 ? ` ${p.delta}` : ' ±0'
-        : p.submitted ? ' ✓已锁定' : ' ·分组中';
+      let mark: string;
+      if (view.phase === 'showdown') {
+        mark = p.delta === null ? '' : p.delta > 0 ? ` +${p.delta}` : p.delta < 0 ? ` ${p.delta}` : ' ±0';
+      } else if (view.phase === 'doubling') {
+        mark = p.doubles > 0 ? ` 加倍×${p.doubles}` : p.doubleDecided ? ' 不加倍' : ' 待表态';
+      } else {
+        mark = p.id === view.leader ? ' ★头家' : '';
+        mark += p.submitted ? ' ✓已锁定' : ' ·分组中';
+      }
       t.text = `${p.id === view.you ? '★ ' : ''}${p.name}\n${p.score} 分${mark}`;
       (t.style as Text['style']).fill = p.id === view.you ? COLORS.gold : COLORS.text;
       t.position.set(startX + i * span, 34);
@@ -235,19 +250,37 @@ export class SixOnlineScene implements Scene {
       return;
     }
     this.infoLayer.visible = true;
-    const waiting = view.players.filter((p) => !p.submitted).length;
     const me = view.players.find((p) => p.id === view.you);
     if (!me) {
       this.infoText.text = '观战中';
-      this.infoSub.text = '等大家把 6 张牌分好，一起开牌';
+      this.infoSub.text = '等大家分好组、表态加倍，再一起开牌';
+      this.doubleText.text = '';
       return;
     }
+
+    if (view.phase === 'doubling') {
+      const turnName = view.doubleTurn === null ? '' : view.players[view.doubleTurn]?.name ?? '';
+      const isMine = view.doubleTurn === view.you;
+      this.infoText.text = view.leaderBonusPending
+        ? `全员加倍！${view.players[view.leader].name} 还有一次机会`
+        : `第 ${view.roundNo} 局 · 依次表态加倍`;
+      this.infoSub.text = `当前 ${view.multiplier} 倍 · 头家 ${view.players[view.leader].name} · ${
+        turnName ? `轮到 ${turnName}${isMine ? '（你）' : ''}` : '表态结束'
+      }`;
+      this.doubleText.text = view.players
+        .map((p) => `${p.name} ${p.doubles > 0 ? `加倍×${p.doubles}` : p.doubleDecided ? '不加倍' : '…'}`)
+        .join('    ');
+      return;
+    }
+
+    this.doubleText.text = '';
+    const waiting = view.players.filter((p) => !p.submitted).length;
     this.infoText.text = me.submitted
       ? '分组已锁定，等其他人'
       : `第 ${view.roundNo} 局 · 把 6 张牌分进三个位置`;
     this.infoSub.text = me.submitted
       ? `还有 ${waiting} 人没锁好`
-      : `单张 ${view.weights.single} 分 · 十点半 ${view.weights.pair} 分 · 炸金花 ${view.weights.triple} 分`;
+      : `单张 ${view.weights.single} 分 · 十点半 ${view.weights.pair} 分 · 炸金花 ${view.weights.triple} 分 · 头家 ${view.players[view.leader].name}`;
   }
 
   private syncResult(view: SixView): void {
@@ -261,6 +294,7 @@ export class SixOnlineScene implements Scene {
         .map((n, j) => `${n} ${g.labels[j] ?? '-'}${g.marks[j] === 'win' ? ' ✓' : ''}`)
         .join('    ');
     });
+    this.resultFoot.text = `本局 ${view.result.multiplier} 倍（${view.result.doubleCount} 次加倍） · 下一局由 ${names[view.result.nextLeader] ?? '?'} 第一个表态`;
   }
 
   /** 只有局号/阶段/草稿变化时重画牌区，避免每次广播都闪一下 */
@@ -377,13 +411,21 @@ export class SixOnlineScene implements Scene {
         this.myLayer.addChild(cv);
       });
       if (!rest.length && editable) {
-        const tip = makeText('牌都分好了，点「锁定分组」等大家开牌', 16, COLORS.textDim);
+        const tip = makeText('牌都分好了，锁定后进入加倍表态', 16, COLORS.textDim);
         tip.anchor.set(0.5);
         tip.position.set(DESIGN_W / 2, HAND_Y);
         this.myLayer.addChild(tip);
       }
     } else {
-      const tip = makeText('已锁定 · 全员锁好后一起开牌', 16, COLORS.textDim);
+      const tip = makeText(
+        view.phase === 'showdown'
+          ? '已开牌 · 结果见上方'
+          : view.phase === 'doubling'
+            ? '分组已锁定 · 正在依次表态加倍'
+            : '分组已锁定 · 等其他人',
+        16,
+        COLORS.textDim,
+      );
       tip.anchor.set(0.5);
       tip.position.set(DESIGN_W / 2, HAND_Y);
       this.myLayer.addChild(tip);
@@ -446,13 +488,15 @@ export class SixOnlineScene implements Scene {
     const view = this.current;
     const me = view?.players.find((p) => p.id === view?.you);
     const editable = !!view && view.phase === 'grouping' && view.legal.canSubmit && !me?.groups;
-    const visible = editable ? ['auto', 'clear', 'submit'] : [];
+    const doubling = !!view && view.phase === 'doubling' && view.legal.canDouble;
+    const visible = editable ? ['auto', 'clear', 'submit'] : doubling ? ['double', 'pass'] : [];
     const w = 132;
     const gap = 18;
     const total = visible.length * w + Math.max(0, visible.length - 1) * gap;
     visible.forEach((key, i) => {
       const b = this.buttons.get(key)!;
       b.visible = true;
+      b.setEnabled(true);
       b.position.set(DESIGN_W / 2 - total / 2 + w / 2 + i * (w + gap), BUTTON_Y);
       if (key === 'submit') b.setEnabled(this.draftComplete());
       if (key === 'clear') b.setEnabled(this.draft.some((s) => s.length > 0));

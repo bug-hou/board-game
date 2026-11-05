@@ -175,10 +175,13 @@ export interface BlackjackView {
 }
 
 /** 六张牌联机视图（与 server/src/games/six-session.ts 的 SixView 对应） */
-export type SixPhase = 'grouping' | 'showdown';
+export type SixPhase = 'grouping' | 'doubling' | 'showdown';
 
 /** order 为 6 个手牌下标的排列：[单张, 两张×2, 三张×3] */
-export type SixAction = { type: 'submit'; order: number[] };
+export type SixAction =
+  | { type: 'submit'; order: number[] }
+  | { type: 'double' }
+  | { type: 'pass' };
 
 export interface SixGroupView {
   key: GroupKey;
@@ -194,6 +197,9 @@ export interface SixGroupView {
 export interface SixResultView {
   groups: SixGroupView[];
   text: string;
+  multiplier: number;
+  doubleCount: number;
+  nextLeader: number;
 }
 
 export interface SixPlayerView {
@@ -204,6 +210,9 @@ export interface SixPlayerView {
   score: number;
   delta: number | null;
   submitted: boolean;
+  /** 本局加倍次数，头家最多 2 次 */
+  doubles: number;
+  doubleDecided: boolean;
   /** 只有自己能看见 6 张手牌 */
   hand: Card[] | null;
   /** 摊牌后公开 */
@@ -215,12 +224,18 @@ export interface SixView {
   roundNo: number;
   phase: SixPhase;
   you: number;
+  /** 本局头家座位号 */
+  leader: number;
+  /** 加倍阶段该谁表态 */
+  doubleTurn: number | null;
+  multiplier: number;
+  leaderBonusPending: boolean;
   players: SixPlayerView[];
   shoeRemaining: number;
   weights: Record<GroupKey, number>;
   log: string[];
   result: SixResultView | null;
-  legal: { canSubmit: boolean };
+  legal: { canSubmit: boolean; canDouble: boolean; canPass: boolean };
 }
 
 export interface PresenceEntry {

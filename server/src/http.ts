@@ -9,6 +9,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { gameMeta, isGameId } from '../../src/game/registry';
 import * as store from './store';
+import { listHistory } from './history';
 import { familyOnline, notifyFamilyAndRooms } from './presence';
 import { dropTable, getSession, startTable } from './games/table';
 import {
@@ -139,27 +140,31 @@ const GUEST_ERRORS = {
 
 /* ---------------- 处理函数 ---------------- */
 
-function handleLogin(req: IncomingMessage, res: ServerResponse, body: unknown): boolean {
-  if (!rateLimit(`login:${req.socket.remoteAddress ?? '?'}`, 30)) {
-    return fail(res, 429, '操作太频繁，稍后再试');
-  }
-  const nickname = store.normalizeNickname(obj(body).nickname);
+function handleRegister(req: IncomingMessage, res: ServerResponse, body: unknown): boolean {
+  if (!rateLimit(`register:${req.socket.remoteAddress ?? '?'}`, 10)) return fail(res, 429, '操作太频繁，稍后再试');
+  const b = obj(body);
+  const username = store.normalizeUsername(b.username);
+  const nickname = store.normalizeNickname(b.nickname);
+  if (!username) return fail(res, 400, '账号需为 3–24 位小写字母、数字或下划线');
+  if (!store.validPassword(b.password)) return fail(res, 400, '密码至少 8 位，且不超过 128 字节');
   if (!nickname) return fail(res, 400, `昵称不能为空，且不超过 ${store.MAX_NICKNAME} 个字`);
-  const created = store.createUser(nickname, store.normalizeAvatar(obj(body).avatar));
-  const { recoveryCode, ...user } = created;
-  // 恢复码只在注册这一次返回，之后只能靠它找回
-  return ok(res, { token: store.createSession(created.id), user, recoveryCode });
+  try {
+    const user = store.createUser(username, b.password, nickname, store.normalizeAvatar(b.avatar));
+    return ok(res, { token: store.createSession(user.id), user });
+  } catch (err) {
+    if (String(err).includes('UNIQUE')) return fail(res, 409, '这个账号已经有人用了');
+    throw err;
+  }
 }
 
-/** 凭恢复码找回身份：换手机或清了缓存时用 */
-function handleRecover(req: IncomingMessage, res: ServerResponse, body: unknown): boolean {
-  if (!rateLimit(`recover:${req.socket.remoteAddress ?? '?'}`, 10)) {
-    return fail(res, 429, '尝试太频繁，稍后再试');
-  }
-  const code = String(obj(body).recoveryCode ?? '');
-  const user = store.userByRecoveryCode(code);
-  if (!user) return fail(res, 404, '恢复码不对，检查一下有没有抄错');
-  return ok(res, { token: store.createSession(user.id), user, families: store.familiesOfUser(user.id) });
+function handleLogin(req: IncomingMessage, res: ServerResponse, body: unknown): boolean {
+  const b = obj(body);
+  const username = store.normalizeUsername(b.username);
+  if (!rateLimit(`login:${req.socket.remoteAddress ?? '?'}:${username ?? 'invalid'}`, 10)) return fail(res, 429, '尝试太频繁，稍后再试');
+  if (!username || !store.validPassword(b.password)) return fail(res, 401, '账号或密码不正确');
+  const user = store.userByCredentials(username, b.password);
+  if (!user) return fail(res, 401, '账号或密码不正确');
+  return ok(res, { token: store.createSession(user.id), user });
 }
 
 function handleCreateFamily(req: IncomingMessage, res: ServerResponse, body: unknown, user: store.User): boolean {
@@ -365,9 +370,8 @@ export async function handleHttp(req: IncomingMessage, res: ServerResponse): Pro
   }
 
   try {
+    if (path === '/api/auth/register' && method === 'POST') return handleRegister(req, res, body);
     if (path === '/api/auth/login' && method === 'POST') return handleLogin(req, res, body);
-
-    if (path === '/api/auth/recover' && method === 'POST') return handleRecover(req, res, body);
 
     if (path === '/api/guest/enter' && method === 'POST') return handleGuestEnter(req, res, body);
 
@@ -444,7 +448,26 @@ export async function handleHttp(req: IncomingMessage, res: ServerResponse): Pro
     if (!user) return fail(res, 401, '请先登录');
 
     if (path === '/api/me' && method === 'GET') {
-      return ok(res, { user, families: store.familiesOfUser(user.id) });
+      return ok(res, { user, families: store.familiesOfUser(user.id), hasCredentials: store.hasCredentials(user.id) });
+    }
+
+    if (path === '/api/auth/logout' && method === 'POST') {
+      store.revokeSession(bearer(req)!);
+      return ok(res, { ok: true });
+    }
+
+    if (path === '/api/auth/credentials' && method === 'POST') {
+      if (store.hasCredentials(user.id)) return fail(res, 409, '账号已设置');
+      const username = store.normalizeUsername(obj(body).username);
+      const password = obj(body).password;
+      if (!username || !store.validPassword(password)) return fail(res, 400, '账号需 3–24 位字母数字或下划线，密码至少 8 位');
+      try {
+        store.setCredentials(user.id, username, password);
+        return ok(res, { ok: true });
+      } catch (err) {
+        if (String(err).includes('UNIQUE')) return fail(res, 409, '这个账号已经有人用了');
+        throw err;
+      }
     }
 
     if (path === '/api/families' && method === 'POST') {
@@ -464,6 +487,11 @@ export async function handleHttp(req: IncomingMessage, res: ServerResponse): Pro
 
       const sub = m[2] ?? '';
       if (!sub && method === 'GET') return handleFamilyDetail(res, family, user);
+      if (sub === '/history' && method === 'GET') {
+        const raw = Number(url.searchParams.get('before'));
+        const before = Number.isSafeInteger(raw) && raw > 0 ? raw : Date.now() + 1;
+        return ok(res, { matches: listHistory(family.id, before) });
+      }
 
       if (sub === '/invites' && method === 'POST') {
         return handleCreateInvite(res, body, family, user);

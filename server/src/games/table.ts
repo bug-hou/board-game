@@ -7,6 +7,7 @@
 import type { WebSocket } from 'ws';
 import type { Action } from '../../../src/game/holdem/engine';
 import type { RoomDetail } from '../store';
+import { recordMatch } from '../history';
 import { HoldemSession, type HoldemView } from './holdem-session';
 
 interface Conn {
@@ -110,7 +111,14 @@ export function act(roomId: string, actorId: string, action: Action): { ok: bool
   if (!session) return { ok: false, error: '这桌还没开局' };
   const res = session.apply(actorId, action);
   broadcast(roomId);
-  if (session.viewFor(null).result) scheduleNextHand(roomId);
+  const view = session.viewFor(null);
+  if (view.result) {
+    recordMatch(roomId, 'holdem', view.handNo,
+      `${view.result.winners.map((w) => w.name).join('、') || '本手'}赢得本手`,
+      view.players.map((p) => ({ actorId: p.actorId, nickname: p.name, delta: null,
+        winner: view.result!.winners.some((w) => w.id === p.id) })));
+    scheduleNextHand(roomId);
+  }
   return res;
 }
 
@@ -125,7 +133,14 @@ export function skipHand(
   if (!isHost) return { ok: false, error: '只有房主能让人跳过' };
   if (!session.skipHand(targetActorId)) return { ok: false, error: '这个人不需要跳过' };
   broadcast(roomId);
-  if (session.viewFor(null).result) scheduleNextHand(roomId);
+  const view = session.viewFor(null);
+  if (view.result) {
+    recordMatch(roomId, 'holdem', view.handNo,
+      `${view.result.winners.map((w) => w.name).join('、') || '本手'}赢得本手`,
+      view.players.map((p) => ({ actorId: p.actorId, nickname: p.name, delta: null,
+        winner: view.result!.winners.some((w) => w.id === p.id) })));
+    scheduleNextHand(roomId);
+  }
   return { ok: true };
 }
 

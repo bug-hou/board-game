@@ -6,7 +6,8 @@
  * - 邀请链接有过期时间、可用次数上限、可撤销；
  * - 访客有过期时间，房主可随时移除。
  */
-import { db, newId, randomFamilyCode, randomRecoveryCode, randomToken } from './db';
+import { db, newId, randomFamilyCode, randomToken } from './db';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { gameMeta, isGameId } from '../../src/game/registry';
 
 export type RoomStatus = 'waiting' | 'playing' | 'ended';
@@ -111,31 +112,50 @@ export function normalizeAvatar(raw: unknown): string | null {
 
 /* ---------------- 用户与会话 ---------------- */
 
-export interface UserWithRecovery extends User {
-  /** 免密登录的找回凭证，只在创建时返回一次 */
-  recoveryCode: string;
+export function normalizeUsername(raw: unknown): string | null {
+  const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  return /^[a-z0-9_]{3,24}$/.test(value) ? value : null;
 }
 
-export function createUser(nickname: string, avatar: string | null): UserWithRecovery {
+export function validPassword(raw: unknown): raw is string {
+  return typeof raw === 'string' && raw.length >= 8 && Buffer.byteLength(raw, 'utf8') <= 128;
+}
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
+}
+
+export function createUser(username: string, password: string, nickname: string, avatar: string | null): User {
   const user: User = { id: newId('u'), nickname, avatar };
-  const recoveryCode = randomRecoveryCode();
-  db.prepare(
-    'INSERT INTO users (id, nickname, avatar, recovery_code, created_at) VALUES (?, ?, ?, ?, ?)',
-  ).run(user.id, user.nickname, user.avatar, recoveryCode, Date.now());
-  return { ...user, recoveryCode };
+  db.prepare('INSERT INTO users (id, username, password_hash, nickname, avatar, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(user.id, username, hashPassword(password), nickname, avatar, Date.now());
+  return user;
 }
 
-/** 用恢复码换回身份（换设备或清了缓存时找回） */
-export function userByRecoveryCode(code: string): User | null {
-  const normalized = String(code ?? '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
-  if (normalized.length !== 8) return null;
-  const formatted = `${normalized.slice(0, 4)}-${normalized.slice(4)}`;
-  const r = db.prepare('SELECT id, nickname, avatar FROM users WHERE recovery_code = ?').get(formatted) as
-    | User
-    | undefined;
-  return r ?? null;
+export function userByCredentials(username: string, password: string): User | null {
+  const row = db.prepare('SELECT id, nickname, avatar, password_hash FROM users WHERE username = ?')
+    .get(username) as (User & { password_hash: string }) | undefined;
+  if (!row) return null;
+  const [salt, expected] = row.password_hash.split(':');
+  const actual = scryptSync(password, salt, 64);
+  const stored = Buffer.from(expected, 'hex');
+  if (stored.length !== actual.length || !timingSafeEqual(stored, actual)) return null;
+  return { id: row.id, nickname: row.nickname, avatar: row.avatar };
+}
+
+export function hasCredentials(userId: string): boolean {
+  const row = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as { username: string | null } | undefined;
+  return !!row?.username;
+}
+
+export function setCredentials(userId: string, username: string, password: string): void {
+  db.prepare('UPDATE users SET username = ?, password_hash = ? WHERE id = ? AND username IS NULL')
+    .run(username, hashPassword(password), userId);
+}
+
+export function revokeSession(token: string): void {
+  db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
 
 export function updateUser(userId: string, nickname: string, avatar: string | null): void {
@@ -658,7 +678,10 @@ export type JoinResult = { ok: true; room: RoomDetail; seatIndex: number } | { o
 /** 找最小空座位号 */
 function nextSeatIndex(room: RoomDetail): number | null {
   const meta = gameMeta(room.game);
-  const limit = meta?.maxPlayers ?? 8;
+  const configured = room.config.maxPlayers;
+  const limit = typeof configured === 'number' && Number.isInteger(configured)
+    ? Math.max(meta?.minPlayers ?? 2, Math.min(configured, meta?.maxPlayers ?? 8))
+    : meta?.maxPlayers ?? 8;
   const taken = new Set(room.seats.map((s) => s.seatIndex));
   for (let i = 0; i < limit; i += 1) {
     if (!taken.has(i)) return i;

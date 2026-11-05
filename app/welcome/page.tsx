@@ -15,7 +15,7 @@ import { useSession } from '@/lib/session';
 const MAX_NAME = 20;
 
 function WelcomePage() {
-  const { token, user, families, loading, refresh, setCurrentFamilyId } = useSession();
+  const { token, user, loading, refresh, setCurrentFamilyId } = useSession();
   const router = useRouter();
   const params = useSearchParams();
   const presetCode = (params.get('code') ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
@@ -26,8 +26,7 @@ function WelcomePage() {
 
   React.useEffect(() => {
     if (!loading && !user) router.replace('/login');
-    else if (!loading && families.length) router.replace('/family');
-  }, [loading, user, families.length, router]);
+  }, [loading, user, router]);
 
   const go = (familyId: string) => {
     setCurrentFamilyId(familyId);

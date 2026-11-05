@@ -6,6 +6,7 @@
  */
 import type { WebSocket } from 'ws';
 import type { RoomDetail } from '../store';
+import { recordMatch } from '../history';
 import {
   BlackjackSession,
   type BJAction,
@@ -105,7 +106,12 @@ export function act(roomId: string, actorId: string, action: BJAction): { ok: bo
   const wasDone = session.hasResult();
   const res = session.apply(actorId, action);
   broadcast(roomId);
-  if (!wasDone && session.hasResult()) scheduleNextRound(roomId);
+  if (!wasDone && session.hasResult()) {
+    const view = session.viewFor(null);
+    recordMatch(roomId, 'blackjack', view.roundNo, view.result?.text ?? '本局结束',
+      view.players.map((p) => ({ actorId: p.actorId, nickname: p.name, delta: p.delta, winner: p.isWinner })));
+    scheduleNextRound(roomId);
+  }
   return res;
 }
 
@@ -121,7 +127,12 @@ export function skipHand(
   const wasDone = session.hasResult();
   if (!session.skipHand(targetActorId)) return { ok: false, error: '这个人不需要跳过' };
   broadcast(roomId);
-  if (!wasDone && session.hasResult()) scheduleNextRound(roomId);
+  if (!wasDone && session.hasResult()) {
+    const view = session.viewFor(null);
+    recordMatch(roomId, 'blackjack', view.roundNo, view.result?.text ?? '本局结束',
+      view.players.map((p) => ({ actorId: p.actorId, nickname: p.name, delta: p.delta, winner: p.isWinner })));
+    scheduleNextRound(roomId);
+  }
   return { ok: true };
 }
 

@@ -1,4 +1,4 @@
-import type { Family, FamilyDetail, Guest, Invite, InviteInfo, Room, RoomDetail, User } from './types';
+import type { Family, FamilyDetail, Guest, Invite, InviteInfo, MatchRecord, Room, RoomDetail, User } from './types';
 
 
 const BASE = '/api';
@@ -20,21 +20,24 @@ async function request<T>(path: string, init?: RequestInit & { token?: string | 
 }
 
 export const api = {
-  login: (nickname: string, avatar: string | null) =>
-    request<{ token: string; user: User; recoveryCode?: string }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ nickname, avatar }),
+  register: (username: string, password: string, nickname: string, avatar: string | null) =>
+    request<{ token: string; user: User }>('/auth/register', {
+      method: 'POST', body: JSON.stringify({ username, password, nickname, avatar }),
+    }),
+
+  login: (username: string, password: string) =>
+    request<{ token: string; user: User }>('/auth/login', {
+      method: 'POST', body: JSON.stringify({ username, password }),
+    }),
+
+  logout: (token: string) => request<{ ok: boolean }>('/auth/logout', { method: 'POST', token }),
+  setCredentials: (token: string, username: string, password: string) =>
+    request<{ ok: boolean }>('/auth/credentials', {
+      method: 'POST', token, body: JSON.stringify({ username, password }),
     }),
 
   me: (token: string) =>
-    request<{ user: User; families: Family[] }>('/me', { token }),
-
-  /** 凭恢复码找回身份 */
-  recover: (recoveryCode: string) =>
-    request<{ token: string; user: User; families: Family[] }>('/auth/recover', {
-      method: 'POST',
-      body: JSON.stringify({ recoveryCode }),
-    }),
+    request<{ user: User; families: Family[]; hasCredentials: boolean }>('/me', { token }),
 
   // —— 在线房间 ——
   listRooms: (token: string, familyId: string) =>
@@ -85,6 +88,11 @@ export const api = {
 
   familyDetail: (token: string, familyId: string) =>
     request<FamilyDetail>(`/families/${encodeURIComponent(familyId)}`, { token }),
+
+  history: (token: string, familyId: string, before?: number) =>
+    request<{ matches: MatchRecord[] }>(
+      `/families/${encodeURIComponent(familyId)}/history${before ? `?before=${before}` : ''}`, { token },
+    ),
 
   createInvite: (token: string, familyId: string, opts: { label?: string; ttlMinutes: number; maxUses: number }) =>
     request<{ invite: Invite }>(`/families/${encodeURIComponent(familyId)}/invites`, {

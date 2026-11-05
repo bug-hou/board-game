@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Heart, Shuffle, Users } from 'lucide-react';
+import { ArrowRight, Heart, Shuffle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/lib/session';
 
@@ -17,15 +17,12 @@ function Booting() {
 
 function Landing() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md text-center">
-        <p className="text-5xl">🕯️</p>
-        <h1 className="mt-5 text-3xl font-bold tracking-tight text-foreground">家庭游戏夜</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          建一个只属于家人的小房间，
-          <br />
-          隔开几百公里也能凑一桌牌。
-        </p>
+    <main className="auth-screen min-h-dvh px-6 py-12">
+      <div className="mx-auto w-full max-w-lg text-center">
+        <p className="eyebrow">A LITTLE CLOSER, EVERY NIGHT</p>
+        <p className="mt-7 text-5xl">🕯️</p>
+        <h1 className="mt-5 text-4xl font-semibold tracking-tight text-foreground">远一点，也能玩在一起。</h1>
+        <p className="mt-4 text-sm leading-7 text-muted-foreground">家庭游戏夜 · 邀上家人，开一桌只属于你们的小游戏。</p>
 
         <div className="mt-8 flex flex-col gap-3">
           <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-card/80 p-4 text-left">
@@ -44,12 +41,7 @@ function Landing() {
           </div>
         </div>
 
-        <Button asChild size="lg" className="mt-8 w-full">
-          <Link href="/login">
-            <Heart className="size-4" />
-            进入家庭游戏夜
-          </Link>
-        </Button>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2"><Button asChild size="lg"><Link href="/login?mode=register"><Heart className="size-4" />创建账号</Link></Button><Button asChild size="lg" variant="outline"><Link href="/login">已有账号，登录 <ArrowRight className="size-4" /></Link></Button></div>
 
         <p className="mt-4 text-xs text-muted-foreground">
           收到家人发来的邀请链接？直接点开就能玩，不用注册

@@ -45,7 +45,7 @@ function RoomHome() {
 }
 
 function RoomBody({ roomId }: { roomId: string }) {
-  const { token, user } = useSession();
+  const { token, user, currentFamilyId, setCurrentFamilyId } = useSession();
   const router = useRouter();
   const presence = usePresenceData();
 
@@ -59,15 +59,22 @@ function RoomBody({ roomId }: { roomId: string }) {
     try {
       const data = await api.roomDetail(token, roomId);
       setRoom(data.room);
+      if (currentFamilyId !== data.room.familyId) setCurrentFamilyId(data.room.familyId);
       setMissing(false);
     } catch {
       setMissing(true);
     }
-  }, [token, roomId]);
+  }, [token, roomId, currentFamilyId, setCurrentFamilyId]);
 
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  React.useEffect(() => {
+    if (!presence.connected) return;
+    const updated = presence.rooms.find((item) => item.id === roomId);
+    if (updated) setRoom(updated);
+  }, [presence.connected, presence.rooms, roomId]);
 
   // 进出房间同步在线状态，家人能在大厅看到「在玩什么」
   React.useEffect(() => {
@@ -128,8 +135,9 @@ function RoomBody({ roomId }: { roomId: string }) {
   const canStart = players.length >= (meta?.minPlayers ?? 2);
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 py-5 pb-24">
+    <main className="page-container max-w-3xl">
       <BackLink />
+      <div className="page-heading mt-6"><p className="eyebrow">TABLE ROOM</p><h1>{room.title || `${meta?.name ?? '游戏'}牌桌`}</h1><p>{room.status === 'playing' ? '牌局进行中，可以进入牌桌一起玩或旁观。' : `等待家人入座 · 至少 ${meta?.minPlayers ?? 2} 人可以开局`}</p></div>
 
       <Card>
         <CardHeader>
@@ -186,7 +194,7 @@ function RoomBody({ roomId }: { roomId: string }) {
                 </Link>
               </Button>
               <p className="rounded-xl bg-matcha/10 px-4 py-2 text-xs text-matcha-deep">
-                联机已经能玩了，点「进入牌桌」就是熟悉的 Pixi 牌桌，家里人进同一个房间就能同桌
+                家人从同一个房间进入，就能一起玩这一桌。
               </p>
             </div>
           )}

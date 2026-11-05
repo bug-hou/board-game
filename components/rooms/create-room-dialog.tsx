@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -64,7 +63,6 @@ export function CreateRoomDialog({ token, familyId, game, onCreated }: CreateRoo
   const [title, setTitle] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [maxPlayers, setMaxPlayers] = React.useState(Math.min(game.maxPlayers, 6));
-  const [aiCount, setAiCount] = React.useState(0);
   const [busy, setBusy] = React.useState(false);
 
   const submit = async () => {
@@ -77,10 +75,9 @@ export function CreateRoomDialog({ token, familyId, game, onCreated }: CreateRoo
         config: {
           ...(password.trim() ? { password: password.trim() } : {}),
           maxPlayers,
-          aiCount,
         },
       });
-      toast.success('房间开好了，喊人来吧');
+      toast.success('房间已创建');
       setOpen(false);
       setTitle('');
       setPassword('');
@@ -97,7 +94,7 @@ export function CreateRoomDialog({ token, familyId, game, onCreated }: CreateRoo
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="size-4" />
-          开一间
+创建
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -126,8 +123,9 @@ export function CreateRoomDialog({ token, familyId, game, onCreated }: CreateRoo
               id="room-password"
               value={password}
               maxLength={32}
-              type="text"
-              placeholder="留空就是谁都能进"
+              type="password"
+              autoComplete="new-password"
+              placeholder="留空则家庭成员可加入"
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
@@ -141,16 +139,6 @@ export function CreateRoomDialog({ token, familyId, game, onCreated }: CreateRoo
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label className="flex items-center gap-2">
-              AI 补位
-              <Badge variant="outline">默认 0</Badge>
-            </Label>
-            <ChoiceGroup options={[0, 1, 2, 3]} value={aiCount} onChange={setAiCount} />
-            <p className="text-xs text-muted-foreground">
-              只在开局前凑人数用，开局后座位就固定了。人齐了就别开，省得家里混进电脑玩家
-            </p>
-          </div>
         </div>
 
         <DialogFooter>

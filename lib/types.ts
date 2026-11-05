@@ -50,6 +50,18 @@ export interface FamilyDetail {
   viewer: { kind: 'user' | 'guest'; role: 'owner' | 'member' | null };
 }
 
+export interface MatchRecord {
+  id: string;
+  familyId: string;
+  roomId: string;
+  game: string;
+  roundNo: number;
+  title: string | null;
+  summary: string;
+  players: { userId: string | null; nickname: string; avatar: string | null; delta: number | null; winner: boolean }[];
+  playedAt: number;
+}
+
 export type RoomStatus = 'waiting' | 'playing' | 'ended';
 
 export interface Seat {

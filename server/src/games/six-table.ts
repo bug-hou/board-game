@@ -5,6 +5,7 @@
  */
 import type { WebSocket } from 'ws';
 import type { RoomDetail } from '../store';
+import { recordMatch } from '../history';
 import { SixSession, type SixAction, type SixView } from './six-session';
 
 interface Conn {
@@ -95,7 +96,14 @@ export function act(roomId: string, actorId: string, action: SixAction): { ok: b
   const wasDone = session.hasResult();
   const res = session.apply(actorId, action);
   broadcast(roomId);
-  if (!wasDone && session.hasResult()) scheduleNextRound(roomId);
+  if (!wasDone && session.hasResult()) {
+    const view = session.viewFor(null);
+    const best = Math.max(...view.players.map((p) => p.delta ?? 0));
+    recordMatch(roomId, 'six', view.roundNo, view.result?.text ?? '本局结束',
+      view.players.map((p) => ({ actorId: p.actorId, nickname: p.name, delta: p.delta,
+        winner: best > 0 && p.delta === best })));
+    scheduleNextRound(roomId);
+  }
   return res;
 }
 
@@ -111,7 +119,14 @@ export function skipHand(
   const wasDone = session.hasResult();
   if (!session.skipHand(targetActorId)) return { ok: false, error: '这个人不需要跳过' };
   broadcast(roomId);
-  if (!wasDone && session.hasResult()) scheduleNextRound(roomId);
+  if (!wasDone && session.hasResult()) {
+    const view = session.viewFor(null);
+    const best = Math.max(...view.players.map((p) => p.delta ?? 0));
+    recordMatch(roomId, 'six', view.roundNo, view.result?.text ?? '本局结束',
+      view.players.map((p) => ({ actorId: p.actorId, nickname: p.name, delta: p.delta,
+        winner: best > 0 && p.delta === best })));
+    scheduleNextRound(roomId);
+  }
   return { ok: true };
 }
 

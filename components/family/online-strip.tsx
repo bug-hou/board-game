@@ -9,13 +9,13 @@ export function OnlineStrip({ online, rooms }: { online: PresenceEntry[]; rooms:
   if (!online.length) {
     return (
       <p className="rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-        现在没人在线，开个房间喊一声吧
+目前没有其他成员在线。可先创建房间，再邀请家人加入。
       </p>
     );
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
+    <div className="grid gap-2">
       {online.map((p) => {
         const room = p.roomId ? rooms.find((r) => r.id === p.roomId) : null;
         const game = room ? gameMeta(room.game) : null;

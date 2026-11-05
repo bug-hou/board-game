@@ -108,12 +108,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_seat_user ON room_seats(room_id, user_id) 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_seat_guest ON room_seats(room_id, guest_id) WHERE guest_id IS NOT NULL;
 `);
 
-// 老库补列：免密登录的恢复码
+// 兼容已有免密用户；已登录的旧用户可在账户页补设账号和密码。
 const userCols = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
-if (!userCols.some((c) => c.name === 'recovery_code')) {
-  db.exec('ALTER TABLE users ADD COLUMN recovery_code TEXT');
-}
-db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_recovery ON users(recovery_code) WHERE recovery_code IS NOT NULL');
+if (!userCols.some((c) => c.name === 'username')) db.exec('ALTER TABLE users ADD COLUMN username TEXT');
+if (!userCols.some((c) => c.name === 'password_hash')) db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT');
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL');
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS match_history (
+  id TEXT PRIMARY KEY,
+  family_id TEXT NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+  room_id TEXT NOT NULL,
+  game TEXT NOT NULL,
+  round_no INTEGER NOT NULL,
+  title TEXT,
+  summary TEXT NOT NULL,
+  players TEXT NOT NULL,
+  played_at INTEGER NOT NULL,
+  UNIQUE (room_id, game, round_no)
+);
+CREATE INDEX IF NOT EXISTS idx_history_family ON match_history(family_id, played_at DESC);
+`);
 
 /** 家庭码字符集：去掉 0/O/1/I 等易混淆字符，避免口头传错 */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -126,13 +141,6 @@ export function randomFamilyCode(): string {
     s += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   }
   return s;
-}
-
-/** 恢复码：8 位分两组，让人好抄好念（格式 ABCD-EFGH） */
-export function randomRecoveryCode(): string {
-  const pick = () =>
-    Array.from({ length: 4 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
-  return `${pick()}-${pick()}`;
 }
 
 /** 32 字节随机串，用于会话 token / 邀请 token / 访客 token */

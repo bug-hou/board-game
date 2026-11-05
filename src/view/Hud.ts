@@ -149,6 +149,9 @@ export class Hud extends Container {
     this.bannerText.text = title;
     this.bannerSub.text = sub;
     (this.bannerText.style as Text['style']).fill = color;
+    // 人名长短不定，超出横幅时整体缩小，别让字跑出背景框
+    const maxW = 350;
+    this.bannerText.scale.set(Math.min(1, maxW / Math.max(1, this.bannerText.width)));
     this.banner.visible = true;
     this.banner.alpha = 0;
     this.banner.scale.set(0.8);

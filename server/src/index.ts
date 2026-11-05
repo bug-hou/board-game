@@ -15,6 +15,12 @@ import {
   type RoomState,
 } from '../../src/game/blackjack/engine';
 import type { ClientMsg, ServerMsg } from './protocol';
+import { handleHttp } from './http';
+import * as store from './store';
+import { addConn, dropConn, markAlive, notifyFamilyAndRooms, setRoom, sweepDead } from './presence';
+import { handleTableSocket } from './table-ws';
+import { handleBlackjackSocket } from './blackjack-ws';
+import { handleSixSocket } from './six-ws';
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT ?? 8080);
@@ -205,17 +211,114 @@ function handle(c: Client, msg: ClientMsg): void {
 
 // ---------- 启动 ----------
 
+// 家庭体系的 HTTP API 与牌桌 WebSocket 共用同一端口：
+// /api/* 交给家庭接口，其余（含 /healthz 与 WS 握手）留给房间服务。
 const server = http.createServer((req, res) => {
   if (req.url === '/healthz') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('ok');
     return;
   }
+  if (req.url?.startsWith('/api/')) {
+    void handleHttp(req, res);
+    return;
+  }
   res.writeHead(404);
   res.end();
 });
 
-const wss = new WebSocketServer({ server, maxPayload: MAX_PAYLOAD });
+// 一个端口五种连接：/ws/presence 在线状态，/ws/table 德州牌桌，
+// /ws/blackjack 21 点牌桌，/ws/six 六张牌牌桌，/ws/game 旧版房间（保留待改造）
+const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
+const presenceWss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
+const tableWss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
+const blackjackWss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
+const sixWss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
+
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url ?? '/', 'http://localhost');
+  if (pathname === '/ws/presence') {
+    presenceWss.handleUpgrade(req, socket, head, (ws) => presenceWss.emit('connection', ws, req));
+  } else if (pathname === '/ws/table') {
+    tableWss.handleUpgrade(req, socket, head, (ws) => tableWss.emit('connection', ws, req));
+  } else if (pathname === '/ws/blackjack') {
+    blackjackWss.handleUpgrade(req, socket, head, (ws) => blackjackWss.emit('connection', ws, req));
+  } else if (pathname === '/ws/six') {
+    sixWss.handleUpgrade(req, socket, head, (ws) => sixWss.emit('connection', ws, req));
+  } else if (pathname === '/ws/game') {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+  } else {
+    socket.destroy();
+  }
+});
+
+tableWss.on('connection', (ws, req) => {
+  handleTableSocket(ws, req);
+});
+
+blackjackWss.on('connection', (ws, req) => {
+  handleBlackjackSocket(ws, req);
+});
+
+sixWss.on('connection', (ws, req) => {
+  handleSixSocket(ws, req);
+});
+
+presenceWss.on('connection', (ws, req) => {
+  const params = new URL(req.url ?? '/', 'http://localhost').searchParams;
+  const token = params.get('token') ?? '';
+  const familyId = params.get('familyId') ?? '';
+
+  const user = store.userBySession(token);
+  const guest = user ? null : store.guestByToken(token);
+  if (!user && !guest) {
+    ws.close(4001, 'unauthorized');
+    return;
+  }
+  // 家庭成员必须真的属于这个家庭，访客只能进自己被邀的那个家庭
+  if (user ? !store.isMember(familyId, user.id) : guest!.family.id !== familyId) {
+    ws.close(4003, 'forbidden');
+    return;
+  }
+
+  const entry = user
+    ? { id: user.id, kind: 'user' as const, nickname: user.nickname, avatar: user.avatar, roomId: null, game: null }
+    : { id: guest!.id, kind: 'guest' as const, nickname: guest!.nickname, avatar: guest!.avatar, roomId: null, game: null };
+  const connId = addConn(ws, familyId, entry);
+  notifyFamilyAndRooms(familyId);
+
+  ws.on('pong', () => markAlive(connId));
+
+  ws.on('message', (data) => {
+    let msg: { t?: string; roomId?: string | null; game?: string | null };
+    try {
+      msg = JSON.parse(String(data)) as typeof msg;
+    } catch {
+      return;
+    }
+    // 进出房间只更新在线状态，牌桌同步走 /ws/game
+    if (msg.t === 'enter_room' && msg.roomId) {
+      const room = store.roomById(msg.roomId);
+      if (room && room.familyId === familyId) {
+        setRoom(connId, msg.roomId, room.game);
+        notifyFamilyAndRooms(familyId);
+      }
+    } else if (msg.t === 'leave_room') {
+      setRoom(connId, null, null);
+      notifyFamilyAndRooms(familyId);
+    }
+  });
+
+  ws.on('close', () => {
+    dropConn(connId);
+    notifyFamilyAndRooms(familyId);
+  });
+
+  ws.on('error', () => {
+    dropConn(connId);
+    notifyFamilyAndRooms(familyId);
+  });
+});
 
 wss.on('connection', (ws) => {
   const c: Client = { ws, seatId: '', room: null, alive: true };
@@ -256,6 +359,8 @@ const heartbeat = setInterval(() => {
     c.alive = false;
     c.ws.ping();
   }
+  // 在线状态连接同样巡检，掉线的家庭要立刻从名单里消失
+  for (const familyId of sweepDead()) notifyFamilyAndRooms(familyId);
 }, 30_000);
 
 // 回收空房间（座位已被掉线接管清空且无人在线）

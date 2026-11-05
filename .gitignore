@@ -6,6 +6,11 @@ node_modules/
 dist/
 *.zip
 .deploy/
+.next/
+next-env.d.ts
+
+# SQLite 数据库与 WAL 文件
+server/data/
 
 # 编辑器 / IDE 本地数据（含绝对路径与会话状态，不适合入库）
 .history/

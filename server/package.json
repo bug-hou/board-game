@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:six": "tsx scripts/six-session.check.mjs"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "tsx": "^4.19.2",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.10.2",
     "@types/ws": "^8.5.13",
     "typescript": "^5.7.3"

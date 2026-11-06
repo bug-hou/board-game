@@ -101,7 +101,7 @@ export function CreateRoomDialog({ token, familyId, game, onCreated }: CreateRoo
         <DialogHeader>
           <DialogTitle>开一间{game.name}</DialogTitle>
           <DialogDescription>
-            {game.minPlayers} 人就能开局，最多 {game.maxPlayers} 人，家人可以旁观
+            {game.minPlayers} 人就能开局，最多 {game.maxPlayers} 人，也可以旁观
           </DialogDescription>
         </DialogHeader>
 
@@ -125,7 +125,7 @@ export function CreateRoomDialog({ token, familyId, game, onCreated }: CreateRoo
               maxLength={32}
               type="password"
               autoComplete="new-password"
-              placeholder="留空则家庭成员可加入"
+              placeholder="留空则游戏组成员可加入"
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>

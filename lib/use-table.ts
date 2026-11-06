@@ -3,16 +3,7 @@
 import * as React from 'react';
 import type { Action } from '@/src/game/holdem/engine';
 import type { HoldemView } from './types';
-
-function wsBase(): string {
-  const configured = process.env.NEXT_PUBLIC_WS_URL;
-  if (configured) return configured;
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // 本地开发时后端在 8080，生产由同域 Nginx 转发
-  return window.location.port === '3000'
-    ? `${proto}//${window.location.hostname}:8080`
-    : `${proto}//${window.location.host}`;
-}
+import { wsBase } from './backend-url';
 
 interface ServerMsg {
   t: 'view' | 'error';

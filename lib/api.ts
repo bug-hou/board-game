@@ -1,12 +1,10 @@
 import type { Family, FamilyDetail, Guest, Invite, InviteInfo, MatchRecord, Room, RoomDetail, User } from './types';
+import { apiBase } from './backend-url';
 
-
-const BASE = '/api';
-
-/** 统一走 /api，开发环境由 Next rewrite 转发到 Node 服务，生产由 Nginx 转发 */
+/** 本地走同源代理，Makers 生产环境直连公网后端 */
 async function request<T>(path: string, init?: RequestInit & { token?: string | null }): Promise<T> {
   const { token, headers, ...rest } = init ?? {};
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${apiBase}${path}`, {
     ...rest,
     headers: {
       'Content-Type': 'application/json',

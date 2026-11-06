@@ -66,7 +66,7 @@ function FamilyBody({ token, familyId, familyName }: { token: string; familyId: 
       <div className="lobby-banner-content">
         <p className="lobby-overline"><span className="lobby-overline-rule" />{familyName} · 游戏大厅</p>
         <h1 id="lobby-title">今晚，<span>开一桌。</span></h1>
-        <p className="lobby-banner-copy">{user?.nickname}，家人已在同一张桌边。加入一桌，或者选个玩法发起新牌局。</p>
+        <p className="lobby-banner-copy">{user?.nickname}，选个玩法开一桌，或者加入已有牌桌。</p>
         <div className="lobby-banner-actions">
           <Link href="#tables" className="lobby-banner-primary">查看牌桌 <ArrowRight className="size-4" /></Link>
           <Link href="#games" className="lobby-banner-secondary">创建新牌局 <ArrowRight className="size-4" /></Link>
@@ -98,7 +98,7 @@ function FamilyBody({ token, familyId, familyName }: { token: string; familyId: 
             <div className="lobby-empty">
               <div className="lobby-empty-mark" aria-hidden="true"><span>♠</span><span>♦</span></div>
               <h3>{activeRooms.length ? '这个状态下还没有牌桌' : '牌桌空着，等你开场'}</h3>
-              <p>{activeRooms.length ? '切换上方筛选，看看其他牌桌。' : '挑一种玩法，创建房间后邀请家人入座。'}</p>
+              <p>{activeRooms.length ? '切换上方筛选，看看其他牌桌。' : '挑一种玩法，创建房间后邀请朋友入座。'}</p>
               {activeRooms.length ? <button type="button" onClick={() => setRoomFilter('all')} className="lobby-empty-action">查看全部牌桌 <ArrowRight className="size-4" /></button> : <Link href="#games" className="lobby-empty-action">选择玩法 <ArrowRight className="size-4" /></Link>}
             </div>}
         </section>
@@ -115,13 +115,13 @@ function FamilyBody({ token, familyId, familyName }: { token: string; familyId: 
           })}</div>
         </section>
       </div>
-      <aside className="lobby-aside" aria-label="家庭动态与邀请">
-        <section className="lobby-side-card"><div className="lobby-side-heading"><div><p className="lobby-kicker">家庭动态</p><h2>在线成员</h2></div><span className="lobby-online-count">{presence.connected ? `${presence.online.length} 在线` : '连接中'}</span></div>
-          <div className="mt-5">{presence.connected ? <OnlineStrip online={presence.online} rooms={activeRooms} /> : <p className="lobby-presence-wait">正在连接，稍后显示在线成员。</p>}</div>
+      <aside className="lobby-aside" aria-label="在线玩家与邀请">
+        <section className="lobby-side-card"><div className="lobby-side-heading"><div><p className="lobby-kicker">在线状态</p><h2>在线玩家</h2></div><span className="lobby-online-count">{presence.connected ? `${presence.online.length} 在线` : '连接中'}</span></div>
+          <div className="mt-5">{presence.connected ? <OnlineStrip online={presence.online} rooms={activeRooms} /> : <p className="lobby-presence-wait">正在连接，稍后显示在线玩家。</p>}</div>
         </section>
         {family && origin && <InviteCard family={family} origin={origin} />}
         <Link href="/family/history" className="lobby-history-link"><Clock3 className="size-4" />查看最近战绩 <ArrowRight className="ml-auto size-4" /></Link>
-        <p className="lobby-side-note"><LockKeyhole className="size-3.5" />牌局仅对家庭成员和受邀访客开放</p>
+        <p className="lobby-side-note"><LockKeyhole className="size-3.5" />只有加入游戏组或受邀的玩家能进入牌局</p>
       </aside>
     </div>
   </main>;

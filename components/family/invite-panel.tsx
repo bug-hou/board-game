@@ -115,7 +115,7 @@ export function InvitePanel({ token, familyId, invites, origin, canManage, onCha
         <div className="rounded-xl border border-matcha/40 bg-matcha/8 p-4">
           <p className="text-sm font-medium text-matcha-deep">新链接已生成</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            发出去对方点开填个昵称就能一起玩，不会进家庭成员表
+            对方点开链接填个名字就能一起玩，不会成为游戏组成员
           </p>
           <CopyField value={fresh} label="邀请链接" className="mt-3 border-matcha/40 bg-card" mono />
         </div>
@@ -133,7 +133,7 @@ export function InvitePanel({ token, familyId, invites, origin, canManage, onCha
             <DialogHeader>
               <DialogTitle>喊个朋友来玩</DialogTitle>
               <DialogDescription>
-                临时玩家不进家庭成员表，到期自动失效，你也可以随时作废
+                临时玩家不会成为游戏组成员，链接到期自动失效
               </DialogDescription>
             </DialogHeader>
 

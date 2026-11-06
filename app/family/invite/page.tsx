@@ -66,16 +66,16 @@ function InviteHome() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">家庭成员邀请</CardTitle>
+            <CardTitle className="text-base">邀请加入游戏组</CardTitle>
             <CardDescription>进来就是正式成员，会出现在成员表里</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div>
-              <p className="mb-2 text-xs text-muted-foreground">家庭码</p>
+              <p className="mb-2 text-xs text-muted-foreground">加入码</p>
               {family ? (
                 <CopyField
                   value={family.code}
-                  label="家庭码"
+                  label="加入码"
                   mono
                   className="justify-center py-3 font-code text-xl tracking-[0.35em]"
                 />
@@ -99,7 +99,7 @@ function InviteHome() {
           <CardHeader>
             <CardTitle className="text-base">临时来玩的人</CardTitle>
             <CardDescription>
-              分享链接进来，不算家庭成员，到期自动离开，房主也能随时请走
+              分享链接邀请临时玩家，链接到期后自动失效
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">

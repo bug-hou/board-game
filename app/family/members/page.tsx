@@ -67,7 +67,7 @@ function MembersHome() {
         toast.success(`房主已交给 ${pending.nickname}`);
       } else if (pending.kind === 'rotate') {
         const data = await api.rotateFamilyCode(token, familyId);
-        toast.success(`新的家庭码是 ${data.code}`);
+        toast.success(`新的加入码是 ${data.code}`);
         await refresh();
       } else if (pending.kind === 'leave') {
         const data = await api.leaveFamily(token, familyId);
@@ -109,7 +109,7 @@ function MembersHome() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">家庭成员</CardTitle>
+            <CardTitle className="text-base">游戏组成员</CardTitle>
             <CardDescription>
               共 {members.length} 人
               {isOwner ? ' · 你可以移除成员和转让房主' : ''}
@@ -170,7 +170,7 @@ function MembersHome() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">危险操作</CardTitle>
-            <CardDescription>换家庭码会让旧码立刻失效，已经发出的链接不受影响</CardDescription>
+            <CardDescription>换加入码会让旧码立刻失效，已经发出的链接不受影响</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {isOwner && (
@@ -180,7 +180,7 @@ function MembersHome() {
                 onClick={() => setPending({ kind: 'rotate' })}
               >
                 <RefreshCw className="size-4" />
-                换一个新的家庭码
+                换一个新的加入码
               </Button>
             )}
             <Button
@@ -201,17 +201,17 @@ function MembersHome() {
             <DialogTitle>
               {pending?.kind === 'remove' && `把 ${pending.nickname} 移出家庭？`}
               {pending?.kind === 'transfer' && `把房主交给 ${pending.nickname}？`}
-              {pending?.kind === 'rotate' && '换一个新的家庭码？'}
+              {pending?.kind === 'rotate' && '换一个新的加入码？'}
               {pending?.kind === 'leave' && '退出这个家庭？'}
             </DialogTitle>
             <DialogDescription>
-              {pending?.kind === 'remove' && '他会立刻看不到这个家庭的房间，需要重新用家庭码加入。'}
+              {pending?.kind === 'remove' && '他会立刻看不到这个家庭的房间，需要重新用加入码加入。'}
               {pending?.kind === 'transfer' && '转让后你就变成普通成员了，这一步没法撤回。'}
-              {pending?.kind === 'rotate' && '旧的家庭码马上失效，记得把新的告诉家里人。'}
+              {pending?.kind === 'rotate' && '旧的加入码马上失效，记得把新的告诉家里人。'}
               {pending?.kind === 'leave' &&
                 (isOwner && members.length > 1
                   ? '你是房主，退出后房主会自动交给最早加入的成员。'
-                  : '退出后要用家庭码才能回来。')}
+                  : '退出后要用加入码才能回来。')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

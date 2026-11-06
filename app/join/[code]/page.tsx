@@ -21,7 +21,7 @@ export default function JoinPage() {
 
   React.useEffect(() => {
     if (!code) return;
-    api.familyByCode(code).then(setInfo).catch((err) => setError(err instanceof Error ? err.message : '家庭码无效'));
+    api.familyByCode(code).then(setInfo).catch((err) => setError(err instanceof Error ? err.message : '加入码无效'));
   }, [code]);
 
   async function join() {
@@ -43,8 +43,8 @@ export default function JoinPage() {
   return <main className="auth-screen flex min-h-dvh items-center justify-center px-5 py-12">
     <Card className="w-full max-w-md"><CardHeader>
       <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent text-matcha-deep"><HousePlus className="size-7" /></div>
-      <CardTitle className="text-2xl">{error ? '没有找到这个家庭' : info ? `${info.name} 在等你` : '正在寻找家庭…'}</CardTitle>
-      <CardDescription>{error || (info ? `已有 ${info.memberCount} 位家人 · 家庭码 ${code}` : '请稍等片刻')}</CardDescription>
+      <CardTitle className="text-2xl">{error ? '没有找到游戏组' : info ? `${info.name} 在等你` : '正在查找游戏组…'}</CardTitle>
+      <CardDescription>{error || (info ? `已有 ${info.memberCount} 位成员 · 加入码 ${code}` : '请稍等片刻')}</CardDescription>
     </CardHeader><CardContent className="grid gap-3">
       {!error && !loading && info && (user ?
         <Button size="lg" disabled={busy} onClick={join}>{busy ? '加入中…' : `以 ${user.nickname} 的身份加入`}<ArrowRight className="size-4" /></Button> :

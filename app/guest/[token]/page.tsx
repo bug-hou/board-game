@@ -74,7 +74,7 @@ function GuestInner() {
               {info?.familyName ? `「${info.familyName}」喊你来玩` : '有人喊你来玩'}
             </CardTitle>
             <CardDescription>
-              你是临时玩家：能一起玩牌，但不会进对方的家庭成员表，链接到期就自动结束
+              临时加入一起玩，不会成为游戏组成员；链接到期自动失效
             </CardDescription>
           </CardHeader>
 

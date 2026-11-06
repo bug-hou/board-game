@@ -11,7 +11,7 @@ export function InviteCard({ family, origin }: { family: Family; origin: string 
     <section className="surface-card p-5">
       <div className="flex items-center gap-2">
         <UserPlus className="size-4 text-primary" />
-        <h2 className="text-sm font-semibold">邀请加入家庭</h2>
+        <h2 className="text-sm font-semibold">邀请朋友</h2>
         <Link
           href="/family/invite"
           className="ml-auto flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"
@@ -21,11 +21,11 @@ export function InviteCard({ family, origin }: { family: Family; origin: string 
         </Link>
       </div>
 
-      <p className="mt-1 text-xs text-muted-foreground">分享家庭码或邀请链接，一起加入牌桌。</p>
+      <p className="mt-1 text-xs text-muted-foreground">分享加入码或链接，一起开一桌。</p>
 
       <CopyField
         value={family.code}
-        label="家庭码"
+        label="加入码"
         mono
         className="mt-3 justify-center py-3 font-code text-xl tracking-[0.35em]"
       />

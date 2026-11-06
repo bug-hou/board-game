@@ -9,7 +9,7 @@ export function OnlineStrip({ online, rooms }: { online: PresenceEntry[]; rooms:
   if (!online.length) {
     return (
       <p className="rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-目前没有其他成员在线。可先创建房间，再邀请家人加入。
+目前没有其他玩家在线。创建房间后，邀请朋友加入吧。
       </p>
     );
   }

@@ -4,8 +4,8 @@ import { SessionProvider } from '@/lib/session';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '家庭游戏夜',
-  description: '和家里人一起玩的小游戏集合 · 21 点 · 德州扑克',
+  title: '游戏夜',
+  description: '约上朋友，随时开一桌小游戏。',
 };
 
 export const viewport: Viewport = {

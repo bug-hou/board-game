@@ -37,8 +37,8 @@ function WelcomePage() {
     e.preventDefault();
     if (!token) return;
     const familyName = name.trim();
-    if (!familyName) return toast.error('给家庭起个名字吧');
-    if (familyName.length > MAX_NAME) return toast.error(`家庭名最多 ${MAX_NAME} 个字`);
+    if (!familyName) return toast.error('给游戏组起个名字吧');
+    if (familyName.length > MAX_NAME) return toast.error(`名称最多 ${MAX_NAME} 个字`);
     setBusy('create');
     try {
       const { family } = await api.createFamily(token, familyName);
@@ -55,7 +55,7 @@ function WelcomePage() {
     e.preventDefault();
     if (!token) return;
     const normalized = code.trim().toUpperCase();
-    if (normalized.length !== 6) return toast.error('家庭码是 6 位');
+    if (normalized.length !== 6) return toast.error('加入码是 6 位');
     setBusy('join');
     try {
       const { family } = await api.joinFamily(token, normalized);
@@ -80,33 +80,32 @@ function WelcomePage() {
     <main className="flex min-h-dvh flex-col items-center justify-center px-5 py-10">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <p className="text-4xl">🏡</p>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight">{user.nickname}，先安个家</h1>
-          <p className="mt-2 text-sm text-muted-foreground">创建一个家庭，或者用家人给的码加入</p>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight">准备开一桌？</h1>
+          <p className="mt-2 text-sm text-muted-foreground">创建游戏组，或输入朋友分享的加入码。</p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <HousePlus className="size-4 text-primary" />
-              创建一个家庭
+              创建游戏组
             </CardTitle>
-            <CardDescription>创建后你会拿到一个 6 位家庭码和一个邀请链接</CardDescription>
+            <CardDescription>创建后可以把加入码分享给朋友</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={create} className="flex flex-col gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="family-name">家庭名</Label>
+                <Label htmlFor="family-name">游戏组名称</Label>
                 <Input
                   id="family-name"
                   value={name}
                   maxLength={MAX_NAME}
-                  placeholder="比如：老陈家、我们仨"
+                  placeholder="比如：周末牌友"
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <Button type="submit" disabled={busy !== null || !name.trim()}>
-                {busy === 'create' ? '创建中…' : '创建家庭'}
+                {busy === 'create' ? '创建中…' : '创建游戏组'}
               </Button>
             </form>
           </CardContent>
@@ -122,14 +121,14 @@ function WelcomePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <KeyRound className="size-4 text-matcha-deep" />
-              用家庭码加入
+              输入加入码
             </CardTitle>
-            <CardDescription>家人把 6 位家庭码念给你听，输进来就行</CardDescription>
+            <CardDescription>有朋友分享的 6 位加入码？输在这里</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={join} className="flex flex-col gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="family-code">家庭码</Label>
+                <Label htmlFor="family-code">加入码</Label>
                 <Input
                   id="family-code"
                   value={code}
@@ -143,7 +142,7 @@ function WelcomePage() {
                 />
               </div>
               <Button type="submit" variant="matcha" disabled={busy !== null || code.length !== 6}>
-                {busy === 'join' ? '加入中…' : '加入家庭'}
+                {busy === 'join' ? '加入中…' : '加入游戏组'}
               </Button>
             </form>
           </CardContent>

@@ -137,7 +137,7 @@ function RoomBody({ roomId }: { roomId: string }) {
   return (
     <main className="page-container max-w-3xl">
       <BackLink />
-      <div className="page-heading mt-6"><p className="eyebrow">TABLE ROOM</p><h1>{room.title || `${meta?.name ?? '游戏'}牌桌`}</h1><p>{room.status === 'playing' ? '牌局进行中，可以进入牌桌一起玩或旁观。' : `等待家人入座 · 至少 ${meta?.minPlayers ?? 2} 人可以开局`}</p></div>
+      <div className="page-heading mt-6"><p className="eyebrow">TABLE ROOM</p><h1>{room.title || `${meta?.name ?? '游戏'}牌桌`}</h1><p>{room.status === 'playing' ? '牌局进行中，可以进入牌桌一起玩或旁观。' : `等待玩家入座 · 至少 ${meta?.minPlayers ?? 2} 人可以开局`}</p></div>
 
       <Card>
         <CardHeader>
@@ -194,7 +194,7 @@ function RoomBody({ roomId }: { roomId: string }) {
                 </Link>
               </Button>
               <p className="rounded-xl bg-matcha/10 px-4 py-2 text-xs text-matcha-deep">
-                家人从同一个房间进入，就能一起玩这一桌。
+                邀请朋友进入房间，就能一起玩这一桌。
               </p>
             </div>
           )}

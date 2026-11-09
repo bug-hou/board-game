@@ -13,10 +13,10 @@ export function RoomCard({ room, userId }: { room: RoomDetail; userId?: string }
   const host = room.seats.find((seat) => seat.userId === room.hostId);
   const max = typeof room.config.maxPlayers === 'number' ? room.config.maxPlayers : gameMeta(room.game)?.maxPlayers;
   const game = gameMeta(room.game);
-  const isSeated = room.seats.some((seat) => seat.userId === userId && seat.role === 'player');
+  const mySeat = userId ? room.seats.find((seat) => seat.userId === userId || seat.guestId === userId) : null;
   const isPlaying = room.status === 'playing';
   const isFull = max !== undefined && players >= max;
-  const action = isSeated ? (isPlaying ? '返回牌桌' : '返回房间') : isPlaying ? '查看牌局' : isFull ? '旁观牌桌' : '加入牌桌';
+  const action = mySeat ? (isPlaying ? mySeat.role === 'player' ? '返回牌桌' : '返回旁观' : '返回房间') : isPlaying ? room.hasPassword ? '输入密码旁观' : '加入旁观' : room.hasPassword ? '输入密码' : isFull ? '旁观牌桌' : '加入牌桌';
 
   return (
     <Link href={`/room/${room.id}`} className="lobby-room-card" aria-label={`${room.title || `${game?.name ?? '游戏'}牌桌`}，${game?.name ?? room.game}，${players}/${max ?? '?'} 人，${action}`}>

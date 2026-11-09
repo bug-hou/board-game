@@ -4,13 +4,14 @@
  * 与德州、21 点三套会话完全独立，避免改一个引入另外两个的回归。
  */
 import type { WebSocket } from 'ws';
-import type { RoomDetail } from '../store';
+import { tableAccess, type RoomDetail } from '../store';
 import { recordMatch } from '../history';
 import { SixSession, type SixAction, type SixView } from './six-session';
 
 interface Conn {
   ws: WebSocket;
   actorId: string;
+  token: string;
 }
 
 const sessions = new Map<string, SixSession>();
@@ -57,7 +58,11 @@ function broadcast(roomId: string): void {
   const session = sessions.get(roomId);
   const set = conns.get(roomId);
   if (!session || !set) return;
-  for (const c of set) send(c, { t: 'view', view: session.viewFor(c.actorId) });
+  for (const c of set) {
+    const access = tableAccess(c.token, roomId, 'six');
+    if (!access || access.actorId !== c.actorId) { c.ws.close(4003, 'join room first'); set.delete(c); continue; }
+    send(c, { t: 'view', view: session.viewFor(access.role === 'player' ? c.actorId : null) });
+  }
 }
 
 /** 摊牌后自动开下一局，留时间给大家看清三组结果 */
@@ -74,14 +79,15 @@ function scheduleNextRound(roomId: string): void {
   nextRoundTimers.set(roomId, timer);
 }
 
-export function attachConn(roomId: string, actorId: string, ws: WebSocket): () => void {
+export function attachConn(roomId: string, actorId: string, token: string, ws: WebSocket): () => void {
   const set = conns.get(roomId) ?? new Set<Conn>();
-  const conn: Conn = { ws, actorId };
+  const conn: Conn = { ws, actorId, token };
   set.add(conn);
   conns.set(roomId, set);
 
   const session = sessions.get(roomId);
-  if (session) send(conn, { t: 'view', view: session.viewFor(actorId) });
+  const access = tableAccess(token, roomId, 'six');
+  if (session && access) send(conn, { t: 'view', view: session.viewFor(access.role === 'player' ? actorId : null) });
   else send(conn, { t: 'error', reason: '这桌还没开局' });
 
   return () => {

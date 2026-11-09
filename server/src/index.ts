@@ -284,7 +284,7 @@ presenceWss.on('connection', (ws, req) => {
   const entry = user
     ? { id: user.id, kind: 'user' as const, nickname: user.nickname, avatar: user.avatar, roomId: null, game: null }
     : { id: guest!.id, kind: 'guest' as const, nickname: guest!.nickname, avatar: guest!.avatar, roomId: null, game: null };
-  const connId = addConn(ws, familyId, entry);
+  const connId = addConn(ws, familyId, entry, token);
   notifyFamilyAndRooms(familyId);
 
   ws.on('pong', () => markAlive(connId));
@@ -296,10 +296,20 @@ presenceWss.on('connection', (ws, req) => {
     } catch {
       return;
     }
-    // 进出房间只更新在线状态，牌桌同步走 /ws/game
+    if (!msg || typeof msg !== 'object') return;
+    const currentUser = store.userBySession(token);
+    const currentGuest = currentUser ? null : store.guestByToken(token);
+    if ((user && (!currentUser || !store.isMember(familyId, currentUser.id))) ||
+        (guest && (!currentGuest || currentGuest.family.id !== familyId))) {
+      ws.close(4003, 'forbidden');
+      return;
+    }
+    // 进出房间只更新在线状态，牌桌同步走游戏专用连接
     if (msg.t === 'enter_room' && msg.roomId) {
       const room = store.roomById(msg.roomId);
-      if (room && room.familyId === familyId) {
+      if (room && room.familyId === familyId && room.seats.some((seat) =>
+        currentUser ? seat.userId === currentUser.id : seat.guestId === currentGuest!.id
+      )) {
         setRoom(connId, msg.roomId, room.game);
         notifyFamilyAndRooms(familyId);
       }

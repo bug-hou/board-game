@@ -20,26 +20,13 @@ export function handleTableSocket(ws: WebSocket, req: IncomingMessage): void {
   const token = params.get('token') ?? '';
   const roomId = params.get('roomId') ?? '';
 
-  const user = store.userBySession(token);
-  const guest = user ? null : store.guestByToken(token);
-  if (!user && !guest) {
-    ws.close(4001, 'unauthorized');
+  const access = store.tableAccess(token, roomId, 'holdem');
+  if (!access) {
+    ws.close(4003, 'join room first');
     return;
   }
-  const actorId = user ? user.id : guest!.id;
-
-  const room = store.roomById(roomId);
-  if (!room) {
-    ws.close(4004, 'room not found');
-    return;
-  }
-  const allowed = user ? store.isMember(room.familyId, user.id) : guest!.family.id === room.familyId;
-  if (!allowed) {
-    ws.close(4003, 'forbidden');
-    return;
-  }
-
-  const detach = attachConn(roomId, actorId, ws);
+  const actorId = access.actorId;
+  const detach = attachConn(roomId, actorId, token, ws);
 
   ws.on('pong', () => markConnAlive(roomId, ws));
 
@@ -50,8 +37,13 @@ export function handleTableSocket(ws: WebSocket, req: IncomingMessage): void {
     } catch {
       return;
     }
+    if (!msg || typeof msg !== 'object') return;
+
+    const current = store.tableAccess(token, roomId, 'holdem');
+    if (!current) { ws.close(4003, 'join room first'); return; }
 
     if (msg.t === 'act' && msg.action) {
+      if (current.role !== 'player') { ws.close(4003, 'spectators cannot play'); return; }
       const res = act(roomId, actorId, msg.action);
       if (!res.ok && ws.readyState === ws.OPEN) {
         ws.send(JSON.stringify({ t: 'error', reason: res.error ?? '动作不合法' }));
@@ -60,7 +52,7 @@ export function handleTableSocket(ws: WebSocket, req: IncomingMessage): void {
     }
 
     if (msg.t === 'skip' && msg.actorId) {
-      const res = skipHand(roomId, msg.actorId, room.hostId === actorId);
+      const res = skipHand(roomId, msg.actorId, current.role === 'player' && current.room.hostId === actorId);
       if (!res.ok && ws.readyState === ws.OPEN) {
         ws.send(JSON.stringify({ t: 'error', reason: res.error ?? '跳过失败' }));
       }

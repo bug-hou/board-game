@@ -12,19 +12,21 @@ interface PixiOnlineTableProps {
   view: HoldemView;
   onAct: (action: Action) => void;
   onExit: () => void;
+  onReady?: () => void;
+  onError?: (message: string) => void;
 }
 
 /**
  * 联机牌桌容器：负责 Pixi 生命周期，并把服务端视图喂给场景。
  * 玩法判定一律不在前端做，点按钮只是把动作发出去。
  */
-export default function PixiOnlineTable({ view, onAct, onExit }: PixiOnlineTableProps) {
+export default function PixiOnlineTable({ view, onAct, onExit, onReady, onError }: PixiOnlineTableProps) {
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const sceneRef = React.useRef<HoldemOnlineScene | null>(null);
   const readyRef = React.useRef(false);
 
-  const handlers = React.useRef({ onAct, onExit });
-  handlers.current = { onAct, onExit };
+  const handlers = React.useRef({ onAct, onExit, onReady, onError });
+  handlers.current = { onAct, onExit, onReady, onError };
 
   // 场景异步创建期间视图可能已经在手，记一份最新值，就绪后补渲染
   const viewRef = React.useRef(view);
@@ -79,8 +81,10 @@ export default function PixiOnlineTable({ view, onAct, onExit }: PixiOnlineTable
       sceneRef.current = scene;
       readyRef.current = true;
       if (viewRef.current) scene.update(viewRef.current);
+      handlers.current.onReady?.();
     })().catch((err) => {
       console.error('[pixi] 联机牌桌启动失败', err);
+      if (!disposed) handlers.current.onError?.('牌桌画面加载失败，请重新连接。');
     });
 
     return () => {

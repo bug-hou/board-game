@@ -4,16 +4,25 @@ import { apiBase } from './backend-url';
 /** 本地走同源代理，Makers 生产环境直连公网后端 */
 async function request<T>(path: string, init?: RequestInit & { token?: string | null }): Promise<T> {
   const { token, headers, ...rest } = init ?? {};
-  const res = await fetch(`${apiBase}${path}`, {
-    ...rest,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}${path}`, {
+      ...rest,
+      signal: rest.signal ?? AbortSignal.timeout(15000),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+      throw new Error('连接超时，请检查网络后重试');
+    }
+    throw err;
+  }
   const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new Error(data.error ?? `请求失败（${res.status}）`);
+  if (!res.ok) throw Object.assign(new Error(data.error ?? `请求失败（${res.status}）`), { status: res.status });
   return data as T;
 }
 

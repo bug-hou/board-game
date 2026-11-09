@@ -3,13 +3,17 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, LogOut, Users } from 'lucide-react';
+import { ArrowLeft, Loader2, LogOut, Users } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { RoomCard } from '@/components/rooms/room-card';
+import { api } from '@/lib/api';
 import { readGuest, clearGuest } from '@/lib/guest';
 import { useSession } from '@/lib/session';
+import type { RoomDetail } from '@/lib/types';
+import { usePresence } from '@/lib/use-presence';
 import { cn } from '@/lib/utils';
 
 const GAMES = [
@@ -34,6 +38,9 @@ function Lobby() {
   const { user, loading } = useSession();
   const [guest, setGuest] = React.useState<ReturnType<typeof readGuest>>(null);
   const [aiCount, setAiCount] = React.useState(3);
+  const [guestRooms, setGuestRooms] = React.useState<RoomDetail[] | null>(null);
+  const [roomsError, setRoomsError] = React.useState<string | null>(null);
+  const presence = usePresence(!user ? guest?.token ?? null : null, guest?.familyId ?? null);
 
   // 读 guest 与判断跳不跳必须在同一个 effect 里：
   // 分成两个 effect 时，第二个 effect 仍读到本批次旧的 guest=null，会把访客误判成未登录
@@ -43,6 +50,17 @@ function Lobby() {
     if (loading) return;
     if (!user && !g) router.replace('/login');
   }, [loading, user, router]);
+
+  React.useEffect(() => {
+    if (user || !guest?.familyId || !guest.token) return;
+    let active = true;
+    api.listRooms(guest.token, guest.familyId).then(({ rooms }) => {
+      if (active) { setGuestRooms(rooms); setRoomsError(null); }
+    }).catch((err: Error & { status?: number }) => {
+      if (active) setRoomsError(err.status === 401 || err.status === 403 ? '邀请身份已失效，请联系房主重新邀请。' : err.message);
+    });
+    return () => { active = false; };
+  }, [user, guest?.token, guest?.familyId]);
 
   if (loading || (!user && !guest)) {
     return (
@@ -54,6 +72,10 @@ function Lobby() {
 
   const name = user?.nickname ?? guest?.nickname ?? '?';
   const emoji = user?.avatar ?? guest?.avatar ?? null;
+  const liveRooms = presence.connected && presence.roomsReady;
+  const roomsReady = liveRooms || guestRooms !== null;
+  const rooms = (liveRooms ? presence.rooms : guestRooms ?? [])
+    .filter((room) => room.familyId === guest?.familyId && room.status !== 'ended');
 
   return (
     <main className="mx-auto w-full max-w-2xl px-5 py-8">
@@ -87,6 +109,17 @@ function Lobby() {
         </div>
       </header>
 
+      {!user ? <section className="mt-8" aria-labelledby="guest-rooms-title">
+        <p className="lobby-kicker">PLAY TOGETHER</p><h1 id="guest-rooms-title" className="mt-2 text-2xl font-bold tracking-tight">加入一桌游戏</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{guest?.familyName} · 选择房间，密码房会在进入前提示输入密码。</p>
+        <div className="mt-6">
+          {!guest?.familyId ? <div className="lobby-empty">请重新打开邀请链接以继续加入房间。</div> :
+            roomsError && !roomsReady ? <div role="alert" className="lobby-empty"><h2>房间加载失败</h2><p>{roomsError}</p><button type="button" className="lobby-empty-action" onClick={() => window.location.reload()}>重新加载</button></div> :
+              !roomsReady ? <div className="lobby-empty" role="status"><Loader2 className="size-6 animate-spin text-matcha-deep" /><p>正在获取牌桌…</p></div> :
+                rooms.length ? <div className="lobby-room-list">{rooms.map((room) => <RoomCard key={room.id} room={room} userId={guest?.id} />)}</div> :
+                  <div className="lobby-empty"><h2>目前没有牌桌</h2><p>请让房主创建房间后再来看看。</p></div>}
+        </div>
+      </section> : <>
       <div className="mt-8">
         <h1 className="text-2xl font-bold tracking-tight">今晚玩点什么</h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -137,6 +170,7 @@ function Lobby() {
           </Card>
         ))}
       </div>
+      </>}
     </main>
   );
 }

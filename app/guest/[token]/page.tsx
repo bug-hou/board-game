@@ -43,6 +43,8 @@ function GuestInner() {
       const data = await api.guestEnter(token, name, avatar);
       saveGuest({
         token: data.token,
+        id: data.guest.id,
+        familyId: data.family.id,
         nickname: data.guest.nickname,
         avatar: data.guest.avatar,
         familyName: data.family.name,

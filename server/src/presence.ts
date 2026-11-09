@@ -20,6 +20,7 @@ interface Conn {
   ws: WebSocket;
   entry: PresenceEntry;
   familyId: string;
+  token: string;
   alive: boolean;
 }
 
@@ -30,9 +31,10 @@ export function addConn(
   ws: WebSocket,
   familyId: string,
   entry: PresenceEntry,
+  token: string,
 ): number {
   seq += 1;
-  conns.set(seq, { ws, familyId, entry, alive: true });
+  conns.set(seq, { ws, familyId, entry, token, alive: true });
   return seq;
 }
 
@@ -71,7 +73,17 @@ export function setRoom(id: number, roomId: string | null, game: string | null):
   c.entry.game = game;
 }
 
+function authorized(c: Conn): boolean {
+  if (c.entry.kind === 'user') {
+    const user = store.userBySession(c.token);
+    return user?.id === c.entry.id && store.isMember(c.familyId, c.entry.id);
+  }
+  const guest = store.guestByToken(c.token);
+  return guest?.id === c.entry.id && guest.family.id === c.familyId;
+}
+
 function send(c: Conn, payload: unknown): void {
+  if (!authorized(c)) { c.ws.close(4003, 'forbidden'); return; }
   if (c.ws.readyState === c.ws.OPEN) c.ws.send(JSON.stringify(payload));
 }
 
@@ -81,6 +93,7 @@ function uniqueOnline(familyId: string): PresenceEntry[] {
   const out: PresenceEntry[] = [];
   for (const c of conns.values()) {
     if (c.familyId !== familyId) continue;
+    if (!authorized(c)) { c.ws.close(4003, 'forbidden'); continue; }
     if (seen.has(c.entry.id)) continue;
     seen.add(c.entry.id);
     out.push(c.entry);
@@ -98,7 +111,7 @@ export function notifyFamily(familyId: string): void {
 
 /** 房间有变动：通知该家庭刷新房间列表 */
 export function notifyRooms(familyId: string): void {
-  const rooms = store.listRooms(familyId);
+  const rooms = store.listRooms(familyId).map(store.publicRoom);
   for (const c of conns.values()) {
     if (c.familyId === familyId) send(c, { t: 'rooms', rooms });
   }

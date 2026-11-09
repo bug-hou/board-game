@@ -2,8 +2,9 @@
 
 import * as React from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
@@ -53,22 +54,66 @@ const PixiOnlineSix = dynamic(() => import('@/components/game/pixi-online-six'),
   ),
 });
 
+function TableConnectionState({ roomId, connected, hasView, error, connectionError, loadingAuth = false, onRestart }: {
+  roomId: string;
+  connected: boolean;
+  hasView: boolean;
+  error: string | null;
+  connectionError: string | null;
+  loadingAuth?: boolean;
+  onRestart?: () => Promise<void>;
+}) {
+  const [restarting, setRestarting] = React.useState(false);
+  const [restartError, setRestartError] = React.useState<string | null>(null);
+  const [waitingLong, setWaitingLong] = React.useState(false);
+  React.useEffect(() => {
+    if (connected && hasView) {
+      setWaitingLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setWaitingLong(true), 12000);
+    return () => clearTimeout(timer);
+  }, [connected, hasView]);
+
+  if (connected && hasView) return null;
+  const reconnecting = connectionError?.includes('自动重连') ?? false;
+  const problem = restartError ?? (error && error !== '这桌还没开局' ? error : reconnecting ? null : connectionError ?? error);
+  const needsRestart = problem === '这桌还没开局';
+  const canRestart = needsRestart && !!onRestart;
+  return <div role={problem ? 'alert' : 'status'} className="fixed inset-0 z-20 flex items-center justify-center bg-background/95 px-5 backdrop-blur-sm">
+    <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-border bg-card px-7 py-9 text-center shadow-xl">
+      {problem ? <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">!</span> : <Loader2 className="size-8 animate-spin text-matcha-deep" />}
+      <div><h2 className="text-lg font-semibold">{restarting ? '正在恢复牌局' : needsRestart ? '牌局需要恢复' : problem ? '无法进入牌桌' : loadingAuth ? '正在验证身份' : reconnecting ? '正在重新连接' : connected ? '正在同步牌局' : '正在连接牌桌'}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">{restartError ?? (needsRestart ? canRestart ? '牌局中断了，点击下方按钮重新开局。' : '牌局中断了，请联系房主重新开局。' : problem ?? connectionError ?? (waitingLong ? '加载时间较长，可尝试重新连接或返回房间。' : connected ? '正在加载牌桌画面与当前牌局，请稍等。' : '正在建立实时连接，请稍等。'))}</p></div>
+      {canRestart && <Button className="w-full" disabled={restarting} onClick={async () => {
+        setRestarting(true);
+        setRestartError(null);
+        try { await onRestart(); } catch (err) { setRestartError(err instanceof Error ? err.message : '重新开局失败'); setRestarting(false); }
+      }}>{restarting ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}{restarting ? '正在恢复…' : '重新开局'}</Button>}
+      <div className="flex w-full gap-2"><Button variant="outline" asChild className="flex-1"><Link href={`/room/${roomId}`}><ArrowLeft className="size-4" />返回房间</Link></Button><Button variant={canRestart ? 'outline' : 'default'} className="flex-1" onClick={() => window.location.reload()}><RefreshCw className="size-4" />重新连接</Button></div>
+    </div>
+  </div>;
+}
+
 /** 联机牌桌：房间 id 由 /play/holdem?room=xxx 带进来 */
 function OnlineHoldem({ roomId }: { roomId: string }) {
-  const { token: userToken, user } = useSession();
+  const { token: userToken, user, loading } = useSession();
   const router = useRouter();
   const [guestToken, setGuestToken] = React.useState<string | null>(null);
+  const [checkedGuest, setCheckedGuest] = React.useState(false);
   const [room, setRoom] = React.useState<RoomDetail | null>(null);
+  const [roomError, setRoomError] = React.useState<string | null>(null);
+  const [sceneReady, setSceneReady] = React.useState(false);
+  const [sceneError, setSceneError] = React.useState<string | null>(null);
   const token = userToken ?? guestToken;
 
-  React.useEffect(() => setGuestToken(readGuest()?.token ?? null), []);
+  React.useEffect(() => { setGuestToken(readGuest()?.token ?? null); setCheckedGuest(true); }, []);
 
   React.useEffect(() => {
     if (!token) return;
     api
       .roomDetail(token, roomId)
-      .then((d) => setRoom(d.room))
-      .catch((err: Error) => toast.error(err.message));
+      .then((d) => { setRoom(d.room); setRoomError(null); })
+      .catch((err: Error) => setRoomError(err.message));
   }, [token, roomId]);
 
   const table = useTable(token, roomId);
@@ -105,13 +150,7 @@ function OnlineHoldem({ roomId }: { roomId: string }) {
     }
   }, [table.error]);
 
-  if (!token) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center">
-        <p className="text-sm tracking-widest text-muted-foreground">正在准备…</p>
-      </main>
-    );
-  }
+  if (!token) return <TableConnectionState roomId={roomId} connected={false} hasView={false} error={loading || !checkedGuest ? null : '未找到登录身份，请先登录或通过邀请链接加入房间。'} connectionError={null} loadingAuth={loading || !checkedGuest} />;
 
   return (
     <main className="relative min-h-dvh">
@@ -132,18 +171,16 @@ function OnlineHoldem({ roomId }: { roomId: string }) {
         </span>
       </div>
 
-      {table.view ? (
+      {table.view && (
         <PixiOnlineTable
           view={table.view}
           onAct={table.act}
           onExit={() => router.push(`/room/${roomId}`)}
+          onReady={() => setSceneReady(true)}
+          onError={setSceneError}
         />
-      ) : (
-        <div className="flex flex-col items-center justify-center gap-3 py-32">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm tracking-widest text-muted-foreground">等牌桌发牌…</p>
-        </div>
       )}
+      <TableConnectionState roomId={roomId} connected={table.connected} hasView={!!table.view && sceneReady} error={sceneError ?? roomError ?? table.error} connectionError={table.connectionError} onRestart={isHost && token && table.error === '这桌还没开局' ? async () => { await api.startRoom(token, roomId); window.location.reload(); } : undefined} />
 
       {canSkip && acting && (
         <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2">
@@ -158,20 +195,24 @@ function OnlineHoldem({ roomId }: { roomId: string }) {
 
 /** 联机 21 点：/play/blackjack?room=xxx */
 function OnlineBlackjack({ roomId }: { roomId: string }) {
-  const { token: userToken, user } = useSession();
+  const { token: userToken, user, loading } = useSession();
   const router = useRouter();
   const [guestToken, setGuestToken] = React.useState<string | null>(null);
+  const [checkedGuest, setCheckedGuest] = React.useState(false);
   const [room, setRoom] = React.useState<RoomDetail | null>(null);
+  const [roomError, setRoomError] = React.useState<string | null>(null);
+  const [sceneReady, setSceneReady] = React.useState(false);
+  const [sceneError, setSceneError] = React.useState<string | null>(null);
   const token = userToken ?? guestToken;
 
-  React.useEffect(() => setGuestToken(readGuest()?.token ?? null), []);
+  React.useEffect(() => { setGuestToken(readGuest()?.token ?? null); setCheckedGuest(true); }, []);
 
   React.useEffect(() => {
     if (!token) return;
     api
       .roomDetail(token, roomId)
-      .then((d) => setRoom(d.room))
-      .catch((err: Error) => toast.error(err.message));
+      .then((d) => { setRoom(d.room); setRoomError(null); })
+      .catch((err: Error) => setRoomError(err.message));
   }, [token, roomId]);
 
   const table = useBlackjackTable(token, roomId);
@@ -209,13 +250,7 @@ function OnlineBlackjack({ roomId }: { roomId: string }) {
     if (table.error) toast.error(table.error);
   }, [table.error]);
 
-  if (!token) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center">
-        <p className="text-sm tracking-widest text-muted-foreground">正在准备…</p>
-      </main>
-    );
-  }
+  if (!token) return <TableConnectionState roomId={roomId} connected={false} hasView={false} error={loading || !checkedGuest ? null : '未找到登录身份，请先登录或通过邀请链接加入房间。'} connectionError={null} loadingAuth={loading || !checkedGuest} />;
 
   return (
     <main className="relative min-h-dvh">
@@ -239,14 +274,11 @@ function OnlineBlackjack({ roomId }: { roomId: string }) {
         view={view}
         onAct={table.act}
         onExit={() => router.push(`/room/${roomId}`)}
+        onReady={() => setSceneReady(true)}
+        onError={setSceneError}
       />
 
-      {!view && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm tracking-widest text-muted-foreground">等牌桌发牌…</p>
-        </div>
-      )}
+      <TableConnectionState roomId={roomId} connected={table.connected} hasView={!!view && sceneReady} error={sceneError ?? roomError ?? table.error} connectionError={table.connectionError} onRestart={isHost && token && table.error === '这桌还没开局' ? async () => { await api.startRoom(token, roomId); window.location.reload(); } : undefined} />
 
       {isHost && pending && waited >= 60 && (
         <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2">
@@ -261,20 +293,24 @@ function OnlineBlackjack({ roomId }: { roomId: string }) {
 
 /** 联机六张牌：/play/six?room=xxx */
 function OnlineSix({ roomId }: { roomId: string }) {
-  const { token: userToken, user } = useSession();
+  const { token: userToken, user, loading } = useSession();
   const router = useRouter();
   const [guestToken, setGuestToken] = React.useState<string | null>(null);
+  const [checkedGuest, setCheckedGuest] = React.useState(false);
   const [room, setRoom] = React.useState<RoomDetail | null>(null);
+  const [roomError, setRoomError] = React.useState<string | null>(null);
+  const [sceneReady, setSceneReady] = React.useState(false);
+  const [sceneError, setSceneError] = React.useState<string | null>(null);
   const token = userToken ?? guestToken;
 
-  React.useEffect(() => setGuestToken(readGuest()?.token ?? null), []);
+  React.useEffect(() => { setGuestToken(readGuest()?.token ?? null); setCheckedGuest(true); }, []);
 
   React.useEffect(() => {
     if (!token) return;
     api
       .roomDetail(token, roomId)
-      .then((d) => setRoom(d.room))
-      .catch((err: Error) => toast.error(err.message));
+      .then((d) => { setRoom(d.room); setRoomError(null); })
+      .catch((err: Error) => setRoomError(err.message));
   }, [token, roomId]);
 
   const table = useSixTable(token, roomId);
@@ -312,13 +348,7 @@ function OnlineSix({ roomId }: { roomId: string }) {
     if (table.error) toast.error(table.error);
   }, [table.error]);
 
-  if (!token) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center">
-        <p className="text-sm tracking-widest text-muted-foreground">正在准备…</p>
-      </main>
-    );
-  }
+  if (!token) return <TableConnectionState roomId={roomId} connected={false} hasView={false} error={loading || !checkedGuest ? null : '未找到登录身份，请先登录或通过邀请链接加入房间。'} connectionError={null} loadingAuth={loading || !checkedGuest} />;
 
   return (
     <main className="relative min-h-dvh">
@@ -342,14 +372,11 @@ function OnlineSix({ roomId }: { roomId: string }) {
         view={view}
         onAct={table.act}
         onExit={() => router.push(`/room/${roomId}`)}
+        onReady={() => setSceneReady(true)}
+        onError={setSceneError}
       />
 
-      {!view && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm tracking-widest text-muted-foreground">等牌桌发牌…</p>
-        </div>
-      )}
+      <TableConnectionState roomId={roomId} connected={table.connected} hasView={!!view && sceneReady} error={sceneError ?? roomError ?? table.error} connectionError={table.connectionError} onRestart={isHost && token && table.error === '这桌还没开局' ? async () => { await api.startRoom(token, roomId); window.location.reload(); } : undefined} />
 
       {isHost && pending && waited >= 60 && (
         <div className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2">

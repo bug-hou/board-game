@@ -6,13 +6,14 @@
  */
 import type { WebSocket } from 'ws';
 import type { Action } from '../../../src/game/holdem/engine';
-import type { RoomDetail } from '../store';
+import { tableAccess, type RoomDetail } from '../store';
 import { recordMatch } from '../history';
 import { HoldemSession, type HoldemView } from './holdem-session';
 
 interface Conn {
   ws: WebSocket;
   actorId: string;
+  token: string;
   alive: boolean;
 }
 
@@ -68,7 +69,11 @@ function broadcast(roomId: string): void {
   const session = sessions.get(roomId);
   const set = conns.get(roomId);
   if (!session || !set) return;
-  for (const c of set) send(c, { t: 'view', view: session.viewFor(c.actorId) });
+  for (const c of set) {
+    const access = tableAccess(c.token, roomId, 'holdem');
+    if (!access || access.actorId !== c.actorId) { c.ws.close(4003, 'join room first'); set.delete(c); continue; }
+    send(c, { t: 'view', view: session.viewFor(access.role === 'player' ? c.actorId : null) });
+  }
 }
 
 /** 摊牌后自动开下一手，留时间给大家看清结果 */
@@ -85,14 +90,15 @@ function scheduleNextHand(roomId: string): void {
   nextHandTimers.set(roomId, timer);
 }
 
-export function attachConn(roomId: string, actorId: string, ws: WebSocket): () => void {
+export function attachConn(roomId: string, actorId: string, token: string, ws: WebSocket): () => void {
   const set = conns.get(roomId) ?? new Set<Conn>();
-  const conn: Conn = { ws, actorId, alive: true };
+  const conn: Conn = { ws, actorId, token, alive: true };
   set.add(conn);
   conns.set(roomId, set);
 
   const session = sessions.get(roomId);
-  if (session) send(conn, { t: 'view', view: session.viewFor(actorId) });
+  const access = tableAccess(token, roomId, 'holdem');
+  if (session && access) send(conn, { t: 'view', view: session.viewFor(access.role === 'player' ? actorId : null) });
   else send(conn, { t: 'error', reason: '这桌还没开局' });
 
   return () => {

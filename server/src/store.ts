@@ -614,6 +614,41 @@ export function roomById(roomId: string): RoomDetail | null {
   return r ? { ...rowToRoom(r), seats: seatsOf(r.id) } : null;
 }
 
+/** 所有 HTTP / WebSocket 的房间视图都通过这里脱敏。 */
+export function publicRoom(room: RoomDetail): RoomDetail & { hasPassword: boolean } {
+  const { password, passwordHash, ...config } = room.config;
+  return { ...room, config, hasPassword: !!password || !!passwordHash };
+}
+
+/** 旧房间仍允许明文密码校验；新建房间只持久化加盐哈希。 */
+export function verifyRoomPassword(room: RoomDetail, supplied: string): boolean {
+  if (supplied.length > 32) return false;
+  const hash = room.config.passwordHash;
+  if (typeof hash === 'string') {
+    const [salt, expected] = hash.split(':');
+    if (!salt || !expected || !/^[a-f0-9]{128}$/.test(expected)) return false;
+    const actual = scryptSync(supplied, salt, 64);
+    const stored = Buffer.from(expected, 'hex');
+    return timingSafeEqual(stored, actual);
+  }
+  return typeof room.config.password !== 'string' || !room.config.password || room.config.password === supplied;
+}
+
+/** 只有有效身份且已经入座/加入旁观者，才能接收进行中的牌桌视图。 */
+export function tableAccess(token: string, roomId: string, game: string): {
+  room: RoomDetail; actorId: string; role: 'player' | 'spectator';
+} | null {
+  const user = userBySession(token);
+  const guest = user ? null : guestByToken(token);
+  if (!user && !guest) return null;
+  const room = roomById(roomId);
+  if (!room || room.status !== 'playing' || room.game !== game) return null;
+  if (user ? !isMember(room.familyId, user.id) : guest!.family.id !== room.familyId) return null;
+  const seat = room.seats.find((s) => user ? s.userId === user.id : s.guestId === guest!.id);
+  if (!seat) return null;
+  return { room, actorId: user?.id ?? guest!.id, role: seat.role };
+}
+
 /** 家庭内的房间列表，只包含家庭成员和被邀访客可见的范围（同一家庭） */
 export function listRooms(familyId: string): RoomDetail[] {
   const rows = db
@@ -630,6 +665,10 @@ export function createRoom(opts: {
   config: Record<string, unknown>;
 }): RoomDetail {
   if (!isGameId(opts.game)) throw new Error('未知的游戏');
+  const { password, ...otherConfig } = opts.config;
+  const config = typeof password === 'string' && password
+    ? { ...otherConfig, passwordHash: hashPassword(password) }
+    : otherConfig;
   const now = Date.now();
   const room: Room = {
     id: newId('r'),
@@ -638,7 +677,7 @@ export function createRoom(opts: {
     hostId: opts.host.id,
     title: opts.title,
     status: 'waiting',
-    config: opts.config,
+    config,
     createdAt: now,
     updatedAt: now,
   };

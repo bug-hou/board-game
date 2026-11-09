@@ -13,6 +13,7 @@ interface ServerMsg {
 export interface SixTableState {
   view: SixView | null;
   error: string | null;
+  connectionError: string | null;
   connected: boolean;
   act: (action: SixAction) => void;
   skip: (actorId: string) => void;
@@ -22,6 +23,7 @@ export interface SixTableState {
 export function useSixTable(token: string | null, roomId: string | null): SixTableState {
   const [view, setView] = React.useState<SixView | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const [connected, setConnected] = React.useState(false);
   const wsRef = React.useRef<WebSocket | null>(null);
 
@@ -40,6 +42,7 @@ export function useSixTable(token: string | null, roomId: string | null): SixTab
       wsRef.current = ws;
       ws.onopen = () => {
         setConnected(true);
+        setConnectionError(null);
         retry = 0;
       };
       ws.onmessage = (ev) => {
@@ -56,9 +59,15 @@ export function useSixTable(token: string | null, roomId: string | null): SixTab
         }
       };
       ws.onerror = () => ws.close();
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
         setConnected(false);
         if (disposed) return;
+        if (ev.code === 4001 || ev.code === 4003 || ev.code === 4004) {
+          setConnectionError(ev.code === 4001 ? '登录信息已失效，请重新登录。' : '无法进入牌桌，请先返回房间确认已经加入。');
+          setView(null);
+          return;
+        }
+        setConnectionError('连接中断，正在自动重连…');
         retry = Math.min(retry + 1, 5);
         timer = setTimeout(connect, retry * 1000);
       };
@@ -82,5 +91,5 @@ export function useSixTable(token: string | null, roomId: string | null): SixTab
   const act = React.useCallback((action: SixAction) => send({ t: 'act', action }), [send]);
   const skip = React.useCallback((actorId: string) => send({ t: 'skip', actorId }), [send]);
 
-  return { view, error, connected, act, skip };
+  return { view, error, connectionError, connected, act, skip };
 }

@@ -271,12 +271,6 @@ function sanitizeConfig(raw: unknown, game: string): Record<string, unknown> {
   return out;
 }
 
-/** 房间对外展示时抹掉密码，避免成员列表里被看光 */
-function publicRoom(room: store.RoomDetail) {
-  const { password, ...restConfig } = room.config;
-  return { ...room, config: restConfig, hasPassword: typeof password === 'string' && password.length > 0 };
-}
-
 function handleCreateRoom(req: IncomingMessage, res: ServerResponse, body: unknown, user: store.User): boolean {
   if (!rateLimit(`room:${req.socket.remoteAddress ?? '?'}`, 30)) {
     return fail(res, 429, '操作太频繁，稍后再试');
@@ -299,22 +293,23 @@ function handleCreateRoom(req: IncomingMessage, res: ServerResponse, body: unkno
     config: sanitizeConfig(b.config, game),
   });
   notifyFamilyAndRooms(familyId);
-  return ok(res, { room: publicRoom(room) });
+  return ok(res, { room: store.publicRoom(room) });
 }
 
 function handleJoinRoom(res: ServerResponse, body: unknown, room: store.RoomDetail, id: Identity): boolean {
   if (!belongsTo(id, room.familyId)) return fail(res, 403, '这个房间不是你家的');
   const b = obj(body);
   const password = typeof b.password === 'string' ? b.password : '';
-  const required = room.config.password;
-  if (typeof required === 'string' && required && password !== required) {
+  const alreadyJoined = room.seats.some((seat) => id.kind === 'user' ? seat.userId === id.user.id : seat.guestId === id.guest.id);
+  if (!alreadyJoined && !rateLimit(`room-join:${room.id}:${actorOf(id).id}`, 12)) return fail(res, 429, '密码尝试太频繁，请稍后再试');
+  if (!alreadyJoined && !store.verifyRoomPassword(room, password)) {
     return fail(res, 401, '房间密码不对');
   }
   const role = b.role === 'spectator' ? 'spectator' : 'player';
   const result = store.joinRoom(room, actorOf(id), role);
   if (!result.ok) return fail(res, 409, result.reason);
   notifyFamilyAndRooms(room.familyId);
-  return ok(res, { room: publicRoom(result.room), seatIndex: result.seatIndex });
+  return ok(res, { room: store.publicRoom(result.room), seatIndex: result.seatIndex });
 }
 
 function handleStartRoom(res: ServerResponse, room: store.RoomDetail, id: Identity): boolean {
@@ -339,7 +334,7 @@ function handleStartRoom(res: ServerResponse, room: store.RoomDetail, id: Identi
   if (!started.ok) return fail(res, 409, started.error ?? '开局失败');
   store.setRoomStatus(room.id, 'playing');
   notifyFamilyAndRooms(room.familyId);
-  return ok(res, { room: publicRoom(store.roomById(room.id)!) });
+  return ok(res, { room: store.publicRoom(store.roomById(room.id)!) });
 }
 
 /* ---------------- 入口 ---------------- */
@@ -382,7 +377,7 @@ export async function handleHttp(req: IncomingMessage, res: ServerResponse): Pro
       const familyId = url.searchParams.get('familyId') ?? '';
       if (!belongsTo(id, familyId)) return fail(res, 403, '你不是这个家庭的成员');
       return ok(res, {
-        rooms: store.listRooms(familyId).map(publicRoom),
+        rooms: store.listRooms(familyId).map(store.publicRoom),
         online: familyOnline(familyId),
       });
     }
@@ -402,7 +397,7 @@ export async function handleHttp(req: IncomingMessage, res: ServerResponse): Pro
       if (!belongsTo(id, room.familyId)) return fail(res, 403, '这个房间不是你家的');
 
       const sub = roomMatch[2] ?? '';
-      if (!sub && method === 'GET') return ok(res, { room: publicRoom(room) });
+      if (!sub && method === 'GET') return ok(res, { room: store.publicRoom(room) });
 
       if (sub === '/join' && method === 'POST') return handleJoinRoom(res, body, room, id);
 
@@ -422,7 +417,7 @@ export async function handleHttp(req: IncomingMessage, res: ServerResponse): Pro
         if (id.kind !== 'user') return fail(res, 403, '访客不能点准备');
         store.setReady(room.id, actorOf(id), obj(body).ready === true);
         notifyFamilyAndRooms(room.familyId);
-        return ok(res, { room: publicRoom(store.roomById(room.id)!) });
+        return ok(res, { room: store.publicRoom(store.roomById(room.id)!) });
       }
 
       if (sub === '/start' && method === 'POST') return handleStartRoom(res, room, id);

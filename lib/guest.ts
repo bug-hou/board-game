@@ -3,6 +3,8 @@
 /** 临时访客的本地身份：不进家庭成员表，过期即失效 */
 export interface GuestSession {
   token: string;
+  id?: string;
+  familyId?: string;
   nickname: string;
   avatar: string | null;
   familyName: string;
